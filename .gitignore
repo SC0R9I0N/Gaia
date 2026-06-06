@@ -1,0 +1,33 @@
+# Build output
+/build/
+/cmake-build-*/
+/out/
+bin/
+obj/
+
+# CMake artifacts
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+*.cmake.stamp
+
+# Dependency caches (SDL is fetched into the build tree)
+_deps/
+
+# Compiled objects / libraries / executables
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+*.pdb
+*.ilk
+
+# Editor / OS noise
+*.user
+*.swp
+.DS_Store
+Thumbs.db
