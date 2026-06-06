@@ -31,3 +31,6 @@ _deps/
 *.swp
 .DS_Store
 Thumbs.db
+
+# CLion IDE
+./idea
