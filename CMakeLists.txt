@@ -30,6 +30,8 @@ FetchContent_MakeAvailable(SDL2)
 add_executable(${PROJECT_NAME}
     src/main.cpp
     src/Game.cpp
+    src/Player.cpp
+    src/PlaceholderTextures.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)

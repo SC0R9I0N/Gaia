@@ -1,10 +1,22 @@
 #include "Game.hpp"
 
+#include "PlaceholderTextures.hpp"
+#include "Player.hpp"
+
 #include <SDL.h>
 
 #include <cstdio>
 
 namespace gaia {
+
+// A few stationary item placeholders, just to show the Item texture in use.
+namespace {
+const SDL_Point kItemSpots[] = {
+    {300, 220}, {820, 180}, {640, 520}, {980, 470}};
+constexpr int kItemSize = 28;
+}  // namespace
+
+Game::Game() = default;
 
 Game::~Game() {
     // Safe to call even if init() failed or run() already cleaned up.
@@ -42,6 +54,15 @@ bool Game::init(const char* title, int width, int height) {
         return false;
     }
 
+    // Build the placeholder texture set and drop the player in the middle.
+    m_textures = std::make_unique<PlaceholderTextures>();
+    m_textures->init(m_renderer, m_width, m_height);
+
+    m_player = std::make_unique<Player>();
+    m_player->init(m_textures.get(),
+                   static_cast<float>(m_width)  * 0.5f - 24.0f,
+                   static_cast<float>(m_height) * 0.5f - 24.0f);
+
     m_running = true;
     return true;
 }
@@ -74,6 +95,15 @@ void Game::processEvents() {
             case SDL_KEYDOWN:
                 if (event.key.keysym.sym == SDLK_ESCAPE) {
                     m_running = false;
+                } else if (event.key.repeat == 0 && m_player) {
+                    // One-shot keyboard actions (roll/use); WASD is polled below.
+                    m_player->handleAction(event.key.keysym.sym);
+                }
+                break;
+            case SDL_MOUSEBUTTONDOWN:
+                // Left mouse button swings the melee attack.
+                if (event.button.button == SDL_BUTTON_LEFT && m_player) {
+                    m_player->attack();
                 }
                 break;
             default:
@@ -83,45 +113,44 @@ void Game::processEvents() {
 }
 
 void Game::update(float deltaSeconds) {
-    // Move the box and bounce it off the window edges.
-    m_boxX += m_velX * deltaSeconds;
-    m_boxY += m_velY * deltaSeconds;
-
-    if (m_boxX <= 0.0f) {
-        m_boxX = 0.0f;
-        m_velX = -m_velX;
-    } else if (m_boxX + m_boxSize >= static_cast<float>(m_width)) {
-        m_boxX = static_cast<float>(m_width) - m_boxSize;
-        m_velX = -m_velX;
-    }
-
-    if (m_boxY <= 0.0f) {
-        m_boxY = 0.0f;
-        m_velY = -m_velY;
-    } else if (m_boxY + m_boxSize >= static_cast<float>(m_height)) {
-        m_boxY = static_cast<float>(m_height) - m_boxSize;
-        m_velY = -m_velY;
+    if (m_player) {
+        const Uint8* keys = SDL_GetKeyboardState(nullptr);
+        m_player->update(deltaSeconds, keys, m_width, m_height);
     }
 }
 
 void Game::render() {
-    // Clear to a dark slate background.
-    SDL_SetRenderDrawColor(m_renderer, 24, 26, 31, 255);
-    SDL_RenderClear(m_renderer);
+    // Background placeholder fills the whole window.
+    if (m_textures) {
+        SDL_RenderCopy(m_renderer, m_textures->defaultFor(AssetKind::Background),
+                       nullptr, nullptr);
+    } else {
+        SDL_SetRenderDrawColor(m_renderer, 24, 26, 31, 255);
+        SDL_RenderClear(m_renderer);
+    }
 
-    // Draw the bouncing box.
-    SDL_Rect box{
-        static_cast<int>(m_boxX),
-        static_cast<int>(m_boxY),
-        static_cast<int>(m_boxSize),
-        static_cast<int>(m_boxSize)};
-    SDL_SetRenderDrawColor(m_renderer, 86, 182, 194, 255);
-    SDL_RenderFillRect(m_renderer, &box);
+    // Item placeholders.
+    if (m_textures) {
+        SDL_Texture* itemTex = m_textures->defaultFor(AssetKind::Item);
+        for (const SDL_Point& p : kItemSpots) {
+            SDL_Rect dst{p.x, p.y, kItemSize, kItemSize};
+            SDL_RenderCopy(m_renderer, itemTex, nullptr, &dst);
+        }
+    }
+
+    // The player draws itself (sprite, melee hitbox, item effect).
+    if (m_player) {
+        m_player->render(m_renderer);
+    }
 
     SDL_RenderPresent(m_renderer);
 }
 
 void Game::shutdown() {
+    // Textures must be freed before the renderer that created them.
+    m_player.reset();
+    m_textures.reset();
+
     if (m_renderer) {
         SDL_DestroyRenderer(m_renderer);
         m_renderer = nullptr;

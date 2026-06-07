@@ -1,12 +1,16 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 
 // Forward declarations keep SDL out of the public header.
 struct SDL_Window;
 struct SDL_Renderer;
 
 namespace gaia {
+
+class Player;
+class PlaceholderTextures;
 
 // Owns the window, the render loop, and the lifetime of the game.
 //
@@ -18,7 +22,7 @@ namespace gaia {
 // (run() calls shutdown() automatically when the loop ends.)
 class Game {
 public:
-    Game() = default;
+    Game();
     ~Game();
 
     // Non-copyable: it owns raw SDL resources.
@@ -44,13 +48,9 @@ private:
     int m_width  = 0;
     int m_height = 0;
 
-    // A small piece of state to prove the update/render loop is alive:
-    // a square that bounces around the screen.
-    float m_boxX  = 100.0f;
-    float m_boxY  = 100.0f;
-    float m_velX  = 220.0f;  // pixels per second
-    float m_velY  = 180.0f;
-    const float m_boxSize = 64.0f;
+    // Held by pointer so SDL types stay out of this header (see forward decls).
+    std::unique_ptr<PlaceholderTextures> m_textures;
+    std::unique_ptr<Player>              m_player;
 };
 
 }  // namespace gaia
