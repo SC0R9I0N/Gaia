@@ -32,6 +32,7 @@ add_executable(${PROJECT_NAME}
     src/Game.cpp
     src/Player.cpp
     src/PlaceholderTextures.cpp
+    src/SpellCaster.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)

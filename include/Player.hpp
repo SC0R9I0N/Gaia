@@ -1,6 +1,7 @@
 #pragma once
 
 #include <SDL.h>
+#include "SpellCaster.hpp"
 
 namespace gaia {
 
@@ -38,6 +39,10 @@ public:
     bool isInvulnerable() const { return m_invulnTimer > 0.0f; }
     // Fills out with the active melee hitbox; returns false when not attacking.
     bool attackHitbox(SDL_Rect* out) const;
+    void beginCasting();
+    void appendCastInput(CastInput input);
+    bool isCasting() const;
+    void castSpell();
 
 private:
     enum class State { Normal, Rolling, Attacking };
@@ -76,6 +81,8 @@ private:
     float m_attackCooldownTimer = 0.0f;
 
     float m_itemTimer = 0.0f;
+
+    SpellCaster m_spellCaster;
 };
 
 }  // namespace gaia

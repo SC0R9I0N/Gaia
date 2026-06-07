@@ -175,4 +175,20 @@ void Player::render(SDL_Renderer* renderer) {
     }
 }
 
+void Player::beginCasting() {
+    m_spellCaster.begin();
+}
+
+void Player::appendCastInput(CastInput input) {
+    m_spellCaster.appendInput(input);
+}
+
+bool Player::isCasting() const {
+    return m_spellCaster.isCasting();
+}
+
+void Player::castSpell() {
+    m_spellCaster.resolveSequence();
+}
+
 }  // namespace gaia

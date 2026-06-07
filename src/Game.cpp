@@ -95,6 +95,8 @@ void Game::processEvents() {
             case SDL_KEYDOWN:
                 if (event.key.keysym.sym == SDLK_ESCAPE) {
                     m_running = false;
+                } else if (event.key.keysym.sym == SDLK_RETURN) {
+                    m_player->castSpell();
                 } else if (event.key.repeat == 0 && m_player) {
                     // One-shot keyboard actions (roll/use); WASD is polled below.
                     m_player->handleAction(event.key.keysym.sym);
@@ -103,7 +105,17 @@ void Game::processEvents() {
             case SDL_MOUSEBUTTONDOWN:
                 // Left mouse button swings the melee attack.
                 if (event.button.button == SDL_BUTTON_LEFT && m_player) {
-                    m_player->attack();
+                    if (m_player->isCasting()) {
+                        m_player->appendCastInput(CastInput::Left);
+                    } else {
+                        m_player->attack();
+                    }
+                } else if (event.button.button == SDL_BUTTON_RIGHT && m_player) {
+                    if (m_player->isCasting()) {
+                        m_player->appendCastInput(CastInput::Right);
+                    }
+                } else if (event.button.button == SDL_BUTTON_MIDDLE && m_player) {
+                    m_player->beginCasting();
                 }
                 break;
             default:
