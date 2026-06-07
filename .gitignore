@@ -33,4 +33,4 @@ _deps/
 Thumbs.db
 
 # CLion IDE
-./idea
+.idea/
