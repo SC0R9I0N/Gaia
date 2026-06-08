@@ -101,6 +101,9 @@ void Player::update(float dt, const Uint8* keyboard, int worldWidth, int worldHe
                 m_state = State::Normal;
             }
         }
+        if (m_spellTimer > 0.0f) {
+            m_spellTimer -= dt;
+        }
     }
 
     // Keep the character inside the playfield.
@@ -108,6 +111,8 @@ void Player::update(float dt, const Uint8* keyboard, int worldWidth, int worldHe
     const float maxY = static_cast<float>(worldHeight) - kSize;
     if (m_x < 0.0f) m_x = 0.0f; else if (m_x > maxX) m_x = maxX;
     if (m_y < 0.0f) m_y = 0.0f; else if (m_y > maxY) m_y = maxY;
+
+    m_spellCaster.update(dt);
 }
 
 bool Player::attackHitbox(SDL_Rect* out) const {
@@ -173,6 +178,7 @@ void Player::render(SDL_Renderer* renderer) {
                                static_cast<Uint8>(180.0f * (1.0f - t)));
         SDL_RenderDrawRect(renderer, &ring);
     }
+    m_spellCaster.render(renderer);
 }
 
 void Player::beginCasting() {
@@ -188,7 +194,8 @@ bool Player::isCasting() const {
 }
 
 void Player::castSpell() {
-    m_spellCaster.resolveSequence();
+    m_spellCaster.resolveSequence(m_x + kSize * 0.5f, m_y + kSize * 0.5f); //player location
+    m_spellTimer = 5.0f;
 }
 
 }  // namespace gaia

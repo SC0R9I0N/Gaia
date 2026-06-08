@@ -95,8 +95,6 @@ void Game::processEvents() {
             case SDL_KEYDOWN:
                 if (event.key.keysym.sym == SDLK_ESCAPE) {
                     m_running = false;
-                } else if (event.key.keysym.sym == SDLK_RETURN) {
-                    m_player->castSpell();
                 } else if (event.key.repeat == 0 && m_player) {
                     // One-shot keyboard actions (roll/use); WASD is polled below.
                     m_player->handleAction(event.key.keysym.sym);
@@ -115,6 +113,11 @@ void Game::processEvents() {
                         m_player->appendCastInput(CastInput::Right);
                     }
                 } else if (event.button.button == SDL_BUTTON_MIDDLE && m_player) {
+                    if (m_player->isCasting()) {
+                        if (event.button.button == SDL_BUTTON_MIDDLE && m_player) {
+                            m_player->castSpell();
+                        }
+                    }
                     m_player->beginCasting();
                 }
                 break;

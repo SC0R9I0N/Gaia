@@ -81,6 +81,7 @@ private:
     float m_attackCooldownTimer = 0.0f;
 
     float m_itemTimer = 0.0f;
+    float m_spellTimer = 0.0f;
 
     SpellCaster m_spellCaster;
 };
