@@ -22,6 +22,7 @@ public:
         bool isCasting() const;
         void resolveSequence(int x, int y);
         void drawCircle(SDL_Renderer* renderer, int x_center, int y_center, int radius) const;
+        int m_spellCast = 0;
 
 private:
         CastState m_state = CastState::Idle;
@@ -31,4 +32,4 @@ private:
         float m_spellTimer = 0.0f;
         float m_circleX = 0.0f;
         float m_circleY = 0.0f;
-};
+}; 

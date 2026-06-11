@@ -6,6 +6,7 @@
 void SpellCaster::begin() {
     m_state = CastState::Casting;
     m_castTimer = m_castWindow;
+    m_spellCast = 0;
     m_sequence.clear();
     std::fprintf(stderr, "Casting begun\n");
 }
@@ -37,29 +38,38 @@ void SpellCaster::update(float deltaSeconds) {
     }
 }
 
+//TODO: clean up reused code here too
 void SpellCaster::render(SDL_Renderer* renderer) {
     if (m_spellTimer <= 0.0f) return;
 
     SDL_SetRenderDrawColor(renderer, 255, 100, 0, 255);
-    drawCircle(renderer,
+    
+    if (m_spellCast == 1) {
+        drawCircle(renderer,
                 static_cast<int>(m_circleX),
                 static_cast<int>(m_circleY),
                 40);
+    }
 }
 
 bool SpellCaster::isCasting() const {
     return m_state == CastState::Casting;
 }
 
+//TODO: clean up eventually so theres not so much reused code
 void SpellCaster::resolveSequence(int x, int y) {
     m_circleX = x;
     m_circleY = y;
     if (m_sequence == std::vector<CastInput>{CastInput::Left, CastInput::Right}) {
-        std::fprintf(stderr, "Fireball");
+        std::fprintf(stderr, "Fireball\n");
+        m_spellCast = 1;
         m_spellTimer = 5.0f;
+        m_castTimer = 0.0f;
     } else if (m_sequence == std::vector<CastInput>{CastInput::Left, CastInput::Left, CastInput::Right}) {
-        std::fprintf(stderr, "Lightning");
+        std::fprintf(stderr, "Lightning\n");
+        m_spellCast = 2;
         m_spellTimer = 5.0f;
+        m_castTimer = 0.0f;
     }
     m_state = CastState::Idle;
     m_sequence.clear();

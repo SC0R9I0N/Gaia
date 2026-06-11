@@ -144,11 +144,10 @@ void Game::processEvents() {
                     }
                 } else if (event.button.button == SDL_BUTTON_MIDDLE && m_player) {
                     if (m_player->isCasting()) {
-                        if (event.button.button == SDL_BUTTON_MIDDLE && m_player) {
-                            m_player->castSpell();
-                        }
+                        m_player->castSpell();   
+                    } else {
+                        m_player->beginCasting();
                     }
-                    m_player->beginCasting();
                 }
                 break;
             default:

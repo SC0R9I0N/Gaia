@@ -195,7 +195,7 @@ bool Player::isCasting() const {
 
 void Player::castSpell() {
     m_spellCaster.resolveSequence(m_x + kSize * 0.5f, m_y + kSize * 0.5f); //player location
-    m_spellTimer = 5.0f;
+    
 }
 
 }  // namespace gaia
