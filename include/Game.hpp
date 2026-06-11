@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <SDL_ttf.h>
 
 // Forward declarations keep SDL out of the public header.
 struct SDL_Window;
@@ -47,6 +48,8 @@ private:
 
     int m_width  = 0;
     int m_height = 0;
+
+    TTF_Font* m_font = nullptr;
 
     // Held by pointer so SDL types stay out of this header (see forward decls).
     std::unique_ptr<PlaceholderTextures> m_textures;

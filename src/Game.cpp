@@ -2,8 +2,11 @@
 
 #include "PlaceholderTextures.hpp"
 #include "Player.hpp"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 #include <SDL.h>
+#include <SDL_ttf.h>
 
 #include <cstdio>
 
@@ -15,6 +18,22 @@ const SDL_Point kItemSpots[] = {
     {300, 220}, {820, 180}, {640, 520}, {980, 470}};
 constexpr int kItemSize = 28;
 }  // namespace
+
+static SDL_Texture* loadTexture(SDL_Renderer* renderer, const char* path) {
+    int width, height, channels;
+    unsigned char* pixels = stbi_load(path, &width, &height, &channels, 4);
+    if (!pixels) return nullptr;
+
+    SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormatFrom(
+        pixels, width, height, 32, width * 4, SDL_PIXELFORMAT_RGBA32);
+
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+
+    SDL_FreeSurface(surface);
+    stbi_image_free(pixels);
+
+    return texture;
+}
 
 Game::Game() = default;
 
@@ -64,6 +83,17 @@ bool Game::init(const char* title, int width, int height) {
                    static_cast<float>(m_height) * 0.5f - 24.0f);
 
     m_running = true;
+
+    if (TTF_Init() == -1) {
+    // TTF_GetError() for details
+    }
+    
+    m_font = TTF_OpenFont("assets/fonts/font.ttf", 24);
+    if (!m_font) {
+        std::fprintf(stderr, "TTF_OpenFont failed: %s\n", TTF_GetError());
+        return false;
+    }
+
     return true;
 }
 
@@ -158,6 +188,16 @@ void Game::render() {
         m_player->render(m_renderer);
     }
 
+    SDL_Color color = {255, 255, 255, 255}; // RGBA
+    SDL_Surface* surface = TTF_RenderText_Blended(m_font, "Fireball: < >", color);  
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(m_renderer, surface);
+    SDL_FreeSurface(surface); // free immediately, you don't need it anymore
+    int w, h;
+    SDL_QueryTexture(texture, nullptr, nullptr, &w, &h);
+    SDL_Rect dst = { 10, 10, w, h };
+    SDL_RenderCopy(m_renderer, texture, nullptr, &dst);
+    SDL_DestroyTexture(texture); // free after rendering
+    
     SDL_RenderPresent(m_renderer);
 }
 
@@ -174,6 +214,8 @@ void Game::shutdown() {
         SDL_DestroyWindow(m_window);
         m_window = nullptr;
     }
+
+    TTF_Quit();
     // SDL_Quit is idempotent; calling it after a partial init is fine.
     SDL_Quit();
     m_running = false;

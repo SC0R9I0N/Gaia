@@ -57,6 +57,9 @@ void SpellCaster::resolveSequence(int x, int y) {
     if (m_sequence == std::vector<CastInput>{CastInput::Left, CastInput::Right}) {
         std::fprintf(stderr, "Fireball");
         m_spellTimer = 5.0f;
+    } else if (m_sequence == std::vector<CastInput>{CastInput::Left, CastInput::Left, CastInput::Right}) {
+        std::fprintf(stderr, "Lightning");
+        m_spellTimer = 5.0f;
     }
     m_state = CastState::Idle;
     m_sequence.clear();

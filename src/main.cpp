@@ -12,6 +12,7 @@ int main(int /*argc*/, char* /*argv*/[]) {
     gaia::Game game;
 
     if (!game.init("Gaia", 1280, 720)) {
+        std::fprintf(stderr, "Game init failed");
         return 1;
     }
 
