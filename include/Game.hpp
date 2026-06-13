@@ -41,10 +41,12 @@ private:
     void update(float deltaSeconds);
     void render();
     void shutdown();
+    void renderPauseMenu();
 
     SDL_Window*   m_window   = nullptr;
     SDL_Renderer* m_renderer = nullptr;
     bool          m_running  = false;
+    bool          m_paused   = false;
 
     int m_width  = 0;
     int m_height = 0;

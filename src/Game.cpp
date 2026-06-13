@@ -83,6 +83,7 @@ bool Game::init(const char* title, int width, int height) {
                    static_cast<float>(m_height) * 0.5f - 24.0f);
 
     m_running = true;
+    m_paused = false;
 
     if (TTF_Init() == -1) {
     // TTF_GetError() for details
@@ -108,10 +109,14 @@ void Game::run() {
         previous = now;
 
         processEvents();
-        update(delta);
-        render();
+        if (m_paused) {
+            renderPauseMenu();
+            SDL_Delay(16);
+        } else {
+            update(delta);
+            render();
+        }
     }
-
     shutdown();
 }
 
@@ -125,6 +130,12 @@ void Game::processEvents() {
             case SDL_KEYDOWN:
                 if (event.key.keysym.sym == SDLK_ESCAPE) {
                     m_running = false;
+                } else if (event.key.keysym.sym == SDLK_TAB) {
+                    if (m_paused) {   
+                        m_paused = false;
+                    } else {
+                    m_paused = true;
+                    }
                 } else if (event.key.repeat == 0 && m_player) {
                     // One-shot keyboard actions (roll/use); WASD is polled below.
                     m_player->handleAction(event.key.keysym.sym);
@@ -218,6 +229,22 @@ void Game::shutdown() {
     // SDL_Quit is idempotent; calling it after a partial init is fine.
     SDL_Quit();
     m_running = false;
+}
+
+void Game::renderPauseMenu() {
+    SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
+    SDL_RenderClear(m_renderer);
+
+    SDL_Color color = {255, 255, 255, 255}; // RGBA
+    SDL_Surface* surface = TTF_RenderText_Blended(m_font, "Game Paused", color);  
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(m_renderer, surface);
+    SDL_FreeSurface(surface); // free immediately, you don't need it anymore
+    int w, h;
+    SDL_QueryTexture(texture, nullptr, nullptr, &w, &h);
+    SDL_Rect dst = { m_width / 2, m_height / 2, w, h };
+    SDL_RenderCopy(m_renderer, texture, nullptr, &dst);
+    SDL_DestroyTexture(texture); // free after rendering
+    SDL_RenderPresent(m_renderer);
 }
 
 }  // namespace gaia
