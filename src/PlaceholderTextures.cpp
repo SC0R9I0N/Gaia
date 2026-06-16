@@ -45,6 +45,9 @@ SDL_Texture* PlaceholderTextures::defaultFor(AssetKind kind) {
         case AssetKind::Background:
             if (!m_background) m_background = makeBackground();
             return m_background;
+        case AssetKind::Vendor:
+            if (!m_vendor) m_vendor = makeVendor();
+            return m_vendor;
     }
     return nullptr;
 }
@@ -139,10 +142,53 @@ SDL_Texture* PlaceholderTextures::makeBackground() {
     return tex;
 }
 
+// A simple 64x80 shopkeeper/stall marker for hub vendors.
+SDL_Texture* PlaceholderTextures::makeVendor() {
+    const int w = 64;
+    const int h = 80;
+    SDL_Texture* tex = makeTarget(m_renderer, w, h);
+    if (!tex) return nullptr;
+
+    SDL_SetRenderTarget(m_renderer, tex);
+    SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 0);
+    SDL_RenderClear(m_renderer);
+
+    const SDL_Rect awning{4, 4, w - 8, 18};
+    SDL_SetRenderDrawColor(m_renderer, 180, 70, 95, 255);
+    SDL_RenderFillRect(m_renderer, &awning);
+    SDL_SetRenderDrawColor(m_renderer, 245, 220, 120, 255);
+    for (int x = 8; x < w - 8; x += 16) {
+        SDL_Rect stripe{x, 4, 8, 18};
+        SDL_RenderFillRect(m_renderer, &stripe);
+    }
+
+    const SDL_Rect counter{8, 50, w - 16, 18};
+    SDL_SetRenderDrawColor(m_renderer, 94, 62, 36, 255);
+    SDL_RenderFillRect(m_renderer, &counter);
+    SDL_SetRenderDrawColor(m_renderer, 142, 96, 52, 255);
+    SDL_RenderDrawRect(m_renderer, &counter);
+
+    const SDL_Rect body{20, 24, 24, 30};
+    SDL_SetRenderDrawColor(m_renderer, 86, 130, 210, 255);
+    SDL_RenderFillRect(m_renderer, &body);
+    SDL_SetRenderDrawColor(m_renderer, 240, 200, 160, 255);
+    SDL_Rect head{22, 18, 20, 18};
+    SDL_RenderFillRect(m_renderer, &head);
+
+    SDL_SetRenderDrawColor(m_renderer, 30, 34, 44, 255);
+    SDL_RenderDrawRect(m_renderer, &awning);
+    SDL_RenderDrawRect(m_renderer, &body);
+    SDL_RenderDrawRect(m_renderer, &head);
+
+    SDL_SetRenderTarget(m_renderer, nullptr);
+    return tex;
+}
+
 void PlaceholderTextures::destroy() {
     if (m_character)  { SDL_DestroyTexture(m_character);  m_character  = nullptr; }
     if (m_item)       { SDL_DestroyTexture(m_item);       m_item       = nullptr; }
     if (m_background) { SDL_DestroyTexture(m_background); m_background = nullptr; }
+    if (m_vendor)     { SDL_DestroyTexture(m_vendor);     m_vendor     = nullptr; }
 }
 
 }  // namespace gaia

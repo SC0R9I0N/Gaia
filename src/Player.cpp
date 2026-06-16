@@ -1,5 +1,6 @@
 #include "Player.hpp"
 
+#include "Keybindings.hpp"
 #include "PlaceholderTextures.hpp"
 
 #include <cmath>
@@ -17,15 +18,7 @@ void Player::init(PlaceholderTextures* textures, float x, float y) {
     m_y = y;
 }
 
-void Player::handleAction(SDL_Keycode key) {
-    switch (key) {
-        case SDLK_SPACE: startRoll(); break;
-        case SDLK_e:     useItem();   break;
-        default: break;
-    }
-}
-
-void Player::startRoll() {
+void Player::roll() {
     if (m_state == State::Rolling || m_rollCooldownTimer > 0.0f) {
         return;
     }
@@ -61,7 +54,7 @@ void Player::useItem() {
     std::printf("[item] used placeholder item -> brief shield\n");
 }
 
-void Player::update(float dt, const Uint8* keyboard, int worldWidth, int worldHeight) {
+void Player::update(float dt, const Uint8* keyboard, const Keybindings& binds) {
     // Tick down all timers.
     if (m_rollCooldownTimer > 0.0f)   m_rollCooldownTimer   -= dt;
     if (m_attackCooldownTimer > 0.0f) m_attackCooldownTimer -= dt;
@@ -80,10 +73,10 @@ void Player::update(float dt, const Uint8* keyboard, int worldWidth, int worldHe
         // Smooth WASD movement from the live keyboard state.
         float moveX = 0.0f;
         float moveY = 0.0f;
-        if (keyboard[SDL_SCANCODE_W]) moveY -= 1.0f;
-        if (keyboard[SDL_SCANCODE_S]) moveY += 1.0f;
-        if (keyboard[SDL_SCANCODE_A]) moveX -= 1.0f;
-        if (keyboard[SDL_SCANCODE_D]) moveX += 1.0f;
+        if (binds.isHeld(Action::MoveUp,    keyboard)) moveY -= 1.0f;
+        if (binds.isHeld(Action::MoveDown,  keyboard)) moveY += 1.0f;
+        if (binds.isHeld(Action::MoveLeft,  keyboard)) moveX -= 1.0f;
+        if (binds.isHeld(Action::MoveRight, keyboard)) moveX += 1.0f;
 
         if (moveX != 0.0f || moveY != 0.0f) {
             const float len = std::sqrt(moveX * moveX + moveY * moveY);
@@ -106,12 +99,8 @@ void Player::update(float dt, const Uint8* keyboard, int worldWidth, int worldHe
         }
     }
 
-    // Keep the character inside the playfield.
-    const float maxX = static_cast<float>(worldWidth)  - kSize;
-    const float maxY = static_cast<float>(worldHeight) - kSize;
-    if (m_x < 0.0f) m_x = 0.0f; else if (m_x > maxX) m_x = maxX;
-    if (m_y < 0.0f) m_y = 0.0f; else if (m_y > maxY) m_y = maxY;
-
+    // Wall collision and door transitions are handled by the RoomSystem after
+    // this update, so no clamping happens here.
     m_spellCaster.update(dt);
 }
 
@@ -131,12 +120,14 @@ bool Player::attackHitbox(SDL_Rect* out) const {
     return true;
 }
 
-void Player::render(SDL_Renderer* renderer) {
+void Player::render(SDL_Renderer* renderer, float cameraX, float cameraY) {
     SDL_Texture* tex = m_textures ? m_textures->defaultFor(AssetKind::Character) : nullptr;
 
     // Melee swing: a translucent red hitbox in front of the character.
     SDL_Rect hitbox;
     if (attackHitbox(&hitbox)) {
+        hitbox.x -= static_cast<int>(cameraX);
+        hitbox.y -= static_cast<int>(cameraY);
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
         SDL_SetRenderDrawColor(renderer, 235, 90, 70, 150);
         SDL_RenderFillRect(renderer, &hitbox);
@@ -145,8 +136,8 @@ void Player::render(SDL_Renderer* renderer) {
     // The character itself, rotated to face its movement direction. While
     // invulnerable it blinks so the i-frames are visible.
     const SDL_Rect dst{
-        static_cast<int>(m_x),
-        static_cast<int>(m_y),
+        static_cast<int>(m_x - cameraX),
+        static_cast<int>(m_y - cameraY),
         static_cast<int>(kSize),
         static_cast<int>(kSize)};
     if (tex) {
@@ -169,8 +160,8 @@ void Player::render(SDL_Renderer* renderer) {
         const float t = 1.0f - m_itemTimer / kItemDuration;  // 0 -> 1
         const int grow = static_cast<int>(t * 40.0f);
         const SDL_Rect ring{
-            static_cast<int>(m_x) - grow,
-            static_cast<int>(m_y) - grow,
+            static_cast<int>(m_x - cameraX) - grow,
+            static_cast<int>(m_y - cameraY) - grow,
             static_cast<int>(kSize) + grow * 2,
             static_cast<int>(kSize) + grow * 2};
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
@@ -178,7 +169,7 @@ void Player::render(SDL_Renderer* renderer) {
                                static_cast<Uint8>(180.0f * (1.0f - t)));
         SDL_RenderDrawRect(renderer, &ring);
     }
-    m_spellCaster.render(renderer);
+    m_spellCaster.render(renderer, cameraX, cameraY);
 }
 
 void Player::beginCasting() {
@@ -193,9 +184,18 @@ bool Player::isCasting() const {
     return m_spellCaster.isCasting();
 }
 
-void Player::castSpell() {
-    m_spellCaster.resolveSequence(m_x + kSize * 0.5f, m_y + kSize * 0.5f); //player location
-    
+bool Player::activeSpellCircle(float* x, float* y, float* radius) const {
+    return m_spellCaster.activeCircle(x, y, radius);
+}
+
+void Player::clearActiveSpell() {
+    m_spellCaster.clearActiveSpell();
+}
+
+void Player::castSpell(float targetX, float targetY) {
+    // Spawn at the player's center, travel to the cursor target.
+    m_spellCaster.resolveSequence(m_x + kSize * 0.5f, m_y + kSize * 0.5f,
+                                  targetX, targetY);
 }
 
 }  // namespace gaia

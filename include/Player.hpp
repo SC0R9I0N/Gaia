@@ -6,6 +6,7 @@
 namespace gaia {
 
 class PlaceholderTextures;
+class Keybindings;
 
 // The playable character: WASD movement plus three core actions.
 //
@@ -23,17 +24,25 @@ public:
     // textures must outlive the player; x/y is the starting top-left position.
     void init(PlaceholderTextures* textures, float x, float y);
 
-    // Trigger a one-shot keyboard action from an SDL key-down event (space/E).
-    void handleAction(SDL_Keycode key);
+    // One-shot keyboard actions, dispatched by Game from the active keybindings.
+    void roll();      // short dodge burst in the facing direction
+    void useItem();   // placeholder item effect
 
     // Swing the melee attack. Bound to the left mouse button by Game.
     void attack();
 
-    // Advance one frame. keyboard is SDL_GetKeyboardState(); world bounds keep
-    // the character on screen.
-    void update(float dt, const Uint8* keyboard, int worldWidth, int worldHeight);
+    // Advance one frame. keyboard is SDL_GetKeyboardState(); the keybindings map
+    // movement keys to directions. Movement is unclamped here; the RoomSystem
+    // resolves wall collisions and door transitions afterwards.
+    void update(float dt, const Uint8* keyboard, const Keybindings& binds);
 
-    void render(SDL_Renderer* renderer);
+    void render(SDL_Renderer* renderer, float cameraX, float cameraY);
+
+    // Position/size accessors so the room system can collide and reposition.
+    float x() const { return m_x; }
+    float y() const { return m_y; }
+    float size() const { return kSize; }
+    void setPosition(float x, float y) { m_x = x; m_y = y; }
 
     // Exposed for future combat code (enemies, damage, etc.).
     bool isInvulnerable() const { return m_invulnTimer > 0.0f; }
@@ -42,13 +51,13 @@ public:
     void beginCasting();
     void appendCastInput(CastInput input);
     bool isCasting() const;
-    void castSpell();
+    bool activeSpellCircle(float* x, float* y, float* radius) const;
+    void clearActiveSpell();
+    // Resolve the cast, sending the spell toward (targetX, targetY) in world space.
+    void castSpell(float targetX, float targetY);
 
 private:
     enum class State { Normal, Rolling, Attacking };
-
-    void startRoll();
-    void useItem();
 
     // ---- Tunables ----------------------------------------------------------
     static constexpr float kSize         = 48.0f;

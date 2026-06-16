@@ -9,6 +9,7 @@ enum class AssetKind {
     Character,   // the player and (future) NPCs / enemies
     Item,        // pickups and usables
     Background,  // the level backdrop
+    Vendor,      // hub vendors / upgrade stations
 };
 
 // Lazily creates and caches simple, procedurally-drawn SDL textures so every
@@ -40,6 +41,7 @@ private:
     SDL_Texture* makeCharacter();
     SDL_Texture* makeItem();
     SDL_Texture* makeBackground();
+    SDL_Texture* makeVendor();
 
     SDL_Renderer* m_renderer = nullptr;
     int m_bgWidth  = 0;
@@ -48,6 +50,7 @@ private:
     SDL_Texture* m_character  = nullptr;
     SDL_Texture* m_item       = nullptr;
     SDL_Texture* m_background  = nullptr;
+    SDL_Texture* m_vendor      = nullptr;
 };
 
 }  // namespace gaia
