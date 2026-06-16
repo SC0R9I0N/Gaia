@@ -763,8 +763,13 @@ void Game::update(float deltaSeconds) {
             float spellX = 0.0f;
             float spellY = 0.0f;
             float spellRadius = 0.0f;
-            if (m_player->activeSpellCircle(&spellX, &spellY, &spellRadius) &&
-                m_enemies.damageCircle(spellX, spellY, spellRadius, 2)) {
+
+            float spellDirectionX = 0.0f;
+            float spellDirectionY = 0.0f;
+            float knockbackPower = 0.0f;
+
+            if (m_player->activeSpellCircle(&spellX, &spellY, &spellRadius, &spellDirectionX, &spellDirectionY, &knockbackPower) &&
+                m_enemies.damageCircle(spellX, spellY, spellRadius, 2, spellDirectionX, spellDirectionY, knockbackPower)) {
                 m_player->clearActiveSpell();
             }
         } else {

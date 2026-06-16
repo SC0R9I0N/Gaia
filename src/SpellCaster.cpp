@@ -6,8 +6,8 @@
 
 const std::vector<SpellDef>& spellRegistry() {
     static const std::vector<SpellDef> spells = {
-        {"Fireball",  1, {CastInput::Left, CastInput::Right}},
-        {"Lightning", 2, {CastInput::Left, CastInput::Left, CastInput::Right}},
+        {"Fireball",  1, {CastInput::Left, CastInput::Right}, 80.0f},
+        {"Lightning", 2, {CastInput::Left, CastInput::Left, CastInput::Right}, 160.0f},
     };
     return spells;
 }
@@ -81,13 +81,16 @@ bool SpellCaster::isCasting() const {
     return m_state == CastState::Casting;
 }
 
-bool SpellCaster::activeCircle(float* x, float* y, float* radius) const {
+bool SpellCaster::activeCircle(float* x, float* y, float* radius, float* spellDirectionX, float* spellDirectionY, float* knockbackPower) const {
     if (!m_spellActive) {
         return false;
     }
     if (x) *x = m_circleX;
     if (y) *y = m_circleY;
     if (radius) *radius = static_cast<float>(kSpellRadius);
+    if (spellDirectionX) *spellDirectionX = m_dirX;
+    if (spellDirectionY) *spellDirectionY = m_dirY;
+    if (knockbackPower) *knockbackPower = m_knockbackPower;
     return true;
 }
 
@@ -102,7 +105,7 @@ void SpellCaster::resolveSequence(float startX, float startY, float targetX, flo
         if (m_sequence == spell.sequence) {
             std::fprintf(stderr, "%s\n", spell.name);
             m_spellCast = spell.spellCast;
-
+            m_knockbackPower = spell.knockbackPower;
             // Launch the projectile from the player toward the cursor.
             m_circleX = startX;
             m_circleY = startY;

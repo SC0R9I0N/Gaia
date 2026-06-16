@@ -21,6 +21,7 @@ struct SpellDef {
     const char* name;
     int spellCast;
     std::vector<CastInput> sequence;
+    float knockbackPower;
 };
 
 // The spells the player currently has access to.
@@ -36,7 +37,7 @@ public:
         void update(float deltaSeconds);
         void render(SDL_Renderer* renderer, float cameraX, float cameraY);
         bool isCasting() const;
-        bool activeCircle(float* x, float* y, float* radius) const;
+        bool activeCircle(float* x, float* y, float* radius, float* spellDirectionX, float* spellDirectionY, float* knockbackPower) const;
         void clearActiveSpell();
         // Resolve the entered sequence. The projectile spawns at (startX, startY)
         // and travels to the cursor at (targetX, targetY), then vanishes.
@@ -61,4 +62,6 @@ private:
         float m_targetY = 0.0f;
         float m_dirX = 0.0f;
         float m_dirY = 0.0f;
+
+        float m_knockbackPower = 0.0f;
 };

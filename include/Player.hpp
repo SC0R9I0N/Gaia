@@ -51,7 +51,7 @@ public:
     void beginCasting();
     void appendCastInput(CastInput input);
     bool isCasting() const;
-    bool activeSpellCircle(float* x, float* y, float* radius) const;
+    bool activeSpellCircle(float* x, float* y, float* radius, float* spellDirectionX, float* spellDirectionY, float* knockbackPower) const;
     void clearActiveSpell();
     // Resolve the cast, sending the spell toward (targetX, targetY) in world space.
     void castSpell(float targetX, float targetY);

@@ -184,8 +184,8 @@ bool Player::isCasting() const {
     return m_spellCaster.isCasting();
 }
 
-bool Player::activeSpellCircle(float* x, float* y, float* radius) const {
-    return m_spellCaster.activeCircle(x, y, radius);
+bool Player::activeSpellCircle(float* x, float* y, float* radius, float* spellDirectionX, float* spellDirectionY, float* knockbackPower) const {
+    return m_spellCaster.activeCircle(x, y, radius, spellDirectionX, spellDirectionY, knockbackPower);
 }
 
 void Player::clearActiveSpell() {

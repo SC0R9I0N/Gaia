@@ -98,12 +98,14 @@ void EnemySystem::damageInRect(const SDL_Rect& hitbox, int damage) {
         m_enemies.end());
 }
 
-bool EnemySystem::damageCircle(float x, float y, float radius, int damage) {
+bool EnemySystem::damageCircle(float x, float y, float radius, int damage, float knockbackDirectionX, float knockbackDirectionY, float knockbackPower) {
     bool hit = false;
     for (Enemy& enemy : m_enemies) {
         if (enemy.invuln <= 0.0f && enemyIntersectsCircle(enemy, x, y, radius)) {
             enemy.health -= damage;
             enemy.invuln = kHitCooldown;
+            enemy.x += knockbackDirectionX * knockbackPower;
+            enemy.y += knockbackDirectionY * knockbackPower;
             hit = true;
         }
     }

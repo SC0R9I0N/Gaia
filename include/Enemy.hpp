@@ -15,7 +15,7 @@ public:
     void render(SDL_Renderer* renderer, float cameraX, float cameraY) const;
 
     void damageInRect(const SDL_Rect& hitbox, int damage);
-    bool damageCircle(float x, float y, float radius, int damage);
+    bool damageCircle(float x, float y, float radius, int damage, float knockbackDirectionX, float knockbackDirectionY, float knockbackPower);
     bool empty() const { return m_enemies.empty(); }
 
 private:
