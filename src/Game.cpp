@@ -180,6 +180,15 @@ bool Game::init(const char* title, int width, int height) {
     // the center of the spawn room.
     m_textures = std::make_unique<PlaceholderTextures>();
     m_textures->init(m_renderer, m_width, m_height);
+    // Pre-create every texture now, outside the render loop. The procedural
+    // fallbacks render to an off-screen target; doing it here avoids switching
+    // the render target mid-frame and surfaces any PNG load issues at startup.
+    for (AssetKind kind : {AssetKind::Character, AssetKind::Item,
+                           AssetKind::Background, AssetKind::Vendor,
+                           AssetKind::Enemy, AssetKind::Floor,
+                           AssetKind::Attack}) {
+        m_textures->defaultFor(kind);
+    }
 
     m_rooms.init(m_width, m_height);
 
@@ -386,10 +395,8 @@ void Game::acceptRunPrompt() {
     float py = m_player->y();
     m_rooms.startRun(px, py, m_player->size());
     m_player->setPosition(px, py);
-    m_enemies.spawnRandom(m_rooms.interiorRect(),
-                          px + m_player->size() * 0.5f,
-                          py + m_player->size() * 0.5f,
-                          10);
+    // Spawn the chosen layout's hand-placed encounter.
+    m_enemies.spawnAt(m_rooms.currentEnemySpawns());
     m_runPromptOpen = false;
     m_runPromptDismissed = false;
     updateCamera();
@@ -412,12 +419,16 @@ void Game::handleGameEvent(const SDL_Event& event) {
             }
             const SDL_Scancode sc = event.key.keysym.scancode;
             // Esc opens the pause menu; quitting now happens through the menu's
-            // confirmed Quit Game button.
+            // confirmed Quit Game button. Guard on repeat == 0 so holding Esc
+            // opens it once instead of toggling every repeat.
             if (event.key.keysym.sym == SDLK_ESCAPE) {
-                m_paused = true;
-                m_pauseScreen = PauseScreen::Main;
-                m_rebindingAction = -1;
+                if (event.key.repeat == 0) {
+                    m_paused = true;
+                    m_pauseScreen = PauseScreen::Main;
+                    m_rebindingAction = -1;
+                }
             } else if (sc == m_keybinds.get(Action::Spellbook)) {
+                // Hold-to-view overlay: opens here, closes on the key's release.
                 m_spellbookOpen = true;
             } else if (event.key.repeat == 0 && m_player) {
                 // One-shot keyboard actions (roll/use); movement is polled.
@@ -435,7 +446,10 @@ void Game::handleGameEvent(const SDL_Event& event) {
                 if (m_player->isCasting()) {
                     m_player->appendCastInput(CastInput::Left);
                 } else {
-                    m_player->attack();
+                    // Swing toward the cursor: map the click into world space.
+                    const SDL_Point lp = windowToLogical(event.button.x, event.button.y);
+                    m_player->attack(static_cast<float>(lp.x) + m_cameraX,
+                                     static_cast<float>(lp.y) + m_cameraY);
                 }
             } else if (event.button.button == SDL_BUTTON_RIGHT && m_player) {
                 if (m_player->isCasting()) {
@@ -471,9 +485,10 @@ void Game::handlePauseEvent(const SDL_Event& event) {
                 m_rebindingAction = -1;
                 break;
             }
-            if (event.key.keysym.sym == SDLK_ESCAPE) {
+            if (event.key.keysym.sym == SDLK_ESCAPE && event.key.repeat == 0) {
                 // Back out one level: close an open dropdown first, then a
                 // sub-screen returns to Main, and Esc on Main resumes the game.
+                // repeat == 0 keeps a held Esc from spazzing the menu open/shut.
                 if (m_openDropdown != Dropdown::None) {
                     m_openDropdown = Dropdown::None;
                 } else if (m_pauseScreen == PauseScreen::Settings ||
@@ -729,12 +744,14 @@ void Game::handlePauseClick(int mouseX, int mouseY) {
 }
 
 void Game::handleSpellbookEvent(const SDL_Event& event) {
-    if (event.type != SDL_KEYDOWN) {
-        return;
-    }
-    // Esc, or the Spellbook key again, closes the overlay.
-    if (event.key.keysym.sym == SDLK_ESCAPE ||
+    // The spellbook is a hold-to-view overlay: it stays up only while the
+    // Spellbook key is held, so releasing that key closes it. Esc also closes
+    // it as a fallback. Held-key repeats are ignored so it doesn't flicker.
+    if (event.type == SDL_KEYUP &&
         event.key.keysym.scancode == m_keybinds.get(Action::Spellbook)) {
+        m_spellbookOpen = false;
+    } else if (event.type == SDL_KEYDOWN &&
+               event.key.keysym.sym == SDLK_ESCAPE) {
         m_spellbookOpen = false;
     }
 }
@@ -745,10 +762,17 @@ void Game::update(float deltaSeconds) {
         m_player->update(deltaSeconds, keys, m_keybinds);
 
         // Resolve wall collisions and door transitions against the active room.
+        // Doors stay locked (acting as solid wall) until the room is cleared.
         float px = m_player->x();
         float py = m_player->y();
-        m_rooms.resolvePlayer(px, py, m_player->size());
+        const bool doorsUnlocked = m_rooms.isHub() || m_enemies.empty();
+        const bool roomChanged =
+            m_rooms.resolvePlayer(px, py, m_player->size(), doorsUnlocked);
         m_player->setPosition(px, py);
+        // Taking a door into a freshly generated run room loads its encounter.
+        if (roomChanged && !m_rooms.isHub()) {
+            m_enemies.spawnAt(m_rooms.currentEnemySpawns());
+        }
         const float playerCenterX = px + m_player->size() * 0.5f;
         const float playerCenterY = py + m_player->size() * 0.5f;
         if (!m_rooms.isHub()) {
@@ -830,14 +854,55 @@ void Game::render() {
     SDL_RenderClear(m_renderer);
     SDL_Texture* vendorTexture =
         m_textures ? m_textures->defaultFor(AssetKind::Vendor) : nullptr;
-    m_rooms.render(m_renderer, m_cameraX, m_cameraY, vendorTexture);
+    SDL_Texture* floorTexture =
+        m_textures ? m_textures->defaultFor(AssetKind::Floor) : nullptr;
+    m_rooms.render(m_renderer, m_cameraX, m_cameraY, vendorTexture, floorTexture);
     if (!m_rooms.isHub()) {
-        m_enemies.render(m_renderer, m_cameraX, m_cameraY);
+        SDL_Texture* enemyTexture =
+            m_textures ? m_textures->defaultFor(AssetKind::Enemy) : nullptr;
+        m_enemies.render(m_renderer, m_cameraX, m_cameraY, enemyTexture);
     }
 
     // The player draws itself (sprite, melee hitbox, item effect).
     if (m_player) {
         m_player->render(m_renderer, m_cameraX, m_cameraY);
+    }
+
+    // Vendor wares: name + price drawn above/below each pedestal (world space).
+    // Buying is not wired yet; this just shows what is for sale.
+    if (!m_rooms.isHub() && m_rooms.isVendorRoom()) {
+        for (const ShopItem& item : m_rooms.currentShopItems()) {
+            const int sx = item.rect.x + item.rect.w / 2 - static_cast<int>(m_cameraX);
+            const int nameY = item.rect.y - 14 - static_cast<int>(m_cameraY);
+            const int priceY = item.rect.y + item.rect.h + 14 - static_cast<int>(m_cameraY);
+            drawTextCentered(item.name, sx, nameY, SDL_Color{235, 230, 210, 255});
+            const std::string price = std::to_string(item.price) + "g";
+            drawTextCentered(price.c_str(), sx, priceY, SDL_Color{245, 215, 120, 255});
+        }
+    }
+
+    // How many rooms deep this run is (the door leads to the next one), plus the
+    // room's status: enemies remaining / cleared, or a shop banner.
+    if (!m_rooms.isHub()) {
+        const std::string roomLabel =
+            "Room " + std::to_string(m_rooms.runDepth() + 1);
+        drawTextCentered(roomLabel.c_str(), m_width / 2, 24,
+                         SDL_Color{200, 210, 230, 255});
+
+        if (m_rooms.isVendorRoom()) {
+            drawTextCentered("Shop", m_width / 2, 48, SDL_Color{245, 215, 120, 255});
+        } else {
+            const int remaining = m_enemies.count();
+            if (remaining > 0) {
+                const std::string enemyLabel =
+                    "Enemies: " + std::to_string(remaining);
+                drawTextCentered(enemyLabel.c_str(), m_width / 2, 48,
+                                 SDL_Color{235, 120, 110, 255});
+            } else {
+                drawTextCentered("Room Cleared - door unlocked", m_width / 2, 48,
+                                 SDL_Color{130, 235, 140, 255});
+            }
+        }
     }
 
     SDL_Color color = {255, 255, 255, 255}; // RGBA
@@ -1342,6 +1407,44 @@ static void drawRow(SDL_Renderer* renderer, const SDL_Rect& row, bool hovered) {
     SDL_RenderDrawRect(renderer, &row);
 }
 
+// Draw a small mouse glyph centred on (cx, cy): an outlined body with two top
+// buttons, the active one filled with `accent`. Used in the spellbook to show
+// left/right click inputs as icons instead of words. Returns the glyph width so
+// callers can advance their layout cursor.
+static int drawMouseIcon(SDL_Renderer* renderer, int cx, int cy,
+                         bool highlightLeft, bool highlightRight,
+                         SDL_Color accent) {
+    constexpr int kW = 22;   // body width
+    constexpr int kH = 32;   // body height
+    constexpr int kButtonH = 12;  // height of the button band at the top
+    const int left   = cx - kW / 2;
+    const int top    = cy - kH / 2;
+    const int midX   = cx;                 // divider between the two buttons
+    const int bandY  = top + kButtonH;     // divider below the buttons
+
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+
+    // Fill the highlighted button before the outline so the lines stay crisp.
+    SDL_SetRenderDrawColor(renderer, accent.r, accent.g, accent.b, 200);
+    if (highlightLeft) {
+        SDL_Rect lhs{left + 1, top + 1, kW / 2 - 1, kButtonH - 1};
+        SDL_RenderFillRect(renderer, &lhs);
+    }
+    if (highlightRight) {
+        SDL_Rect rhs{midX + 1, top + 1, kW - kW / 2 - 2, kButtonH - 1};
+        SDL_RenderFillRect(renderer, &rhs);
+    }
+
+    // Body outline plus the two internal dividers.
+    SDL_SetRenderDrawColor(renderer, 200, 205, 215, 255);
+    SDL_Rect body{left, top, kW, kH};
+    SDL_RenderDrawRect(renderer, &body);
+    SDL_RenderDrawLine(renderer, left, bandY, left + kW - 1, bandY);
+    SDL_RenderDrawLine(renderer, midX, top, midX, bandY);
+
+    return kW;
+}
+
 void Game::renderMainMenu() {
     if (m_pauseScreen == PauseScreen::Settings) {
         renderSettingsMenu();
@@ -1482,12 +1585,24 @@ void Game::renderSpellbook() {
         const int textY = row.y + row.h / 2;
         drawTextCentered(spell.name, row.x + 130, textY, white);
 
-        std::string sequence;
-        for (std::size_t s = 0; s < spell.sequence.size(); ++s) {
-            if (s != 0) sequence += "  ->  ";
-            sequence += castInputName(spell.sequence[s]);
+        // Render the input combo as mouse-button icons separated by arrows,
+        // centred where the old combo text used to sit.
+        const int count = static_cast<int>(spell.sequence.size());
+        constexpr int kIconW  = 22;
+        constexpr int kArrowW = 40;  // space allotted to each "->" separator
+        const int totalW = count * kIconW + (count > 0 ? count - 1 : 0) * kArrowW;
+        const int centerX = row.x + row.w - 200;
+        int cursorX = centerX - totalW / 2;
+        for (int s = 0; s < count; ++s) {
+            if (s != 0) {
+                drawTextCentered("->", cursorX + kArrowW / 2, textY, combo);
+                cursorX += kArrowW;
+            }
+            const bool isLeft = spell.sequence[s] == CastInput::Left;
+            drawMouseIcon(m_renderer, cursorX + kIconW / 2, textY,
+                          isLeft, !isLeft, combo);
+            cursorX += kIconW;
         }
-        drawTextCentered(sequence.c_str(), row.x + row.w - 200, textY, combo);
     }
 
     const std::string closeHint =

@@ -1,6 +1,11 @@
 #include "PlaceholderTextures.hpp"
 
+#include <cmath>    // std::sqrt
 #include <cstdlib>  // std::abs
+
+// stb_image's implementation is compiled in Game.cpp; here we only need the
+// declarations so we can decode artist-supplied PNGs.
+#include "stb_image.h"
 
 namespace gaia {
 
@@ -31,23 +36,76 @@ void PlaceholderTextures::init(SDL_Renderer* renderer, int backgroundWidth, int 
     m_bgHeight = backgroundHeight;
 }
 
+// The single source of truth mapping each kind to the PNG an artist can drop
+// into assets/ to override it. Returns nullptr for kinds with no file mapping
+// (those only ever use their procedural stand-in).
+const char* PlaceholderTextures::assetFileName(AssetKind kind) {
+    switch (kind) {
+        case AssetKind::Character:  return "assets/player.png";
+        case AssetKind::Vendor:     return "assets/vendor.png";
+        case AssetKind::Enemy:      return "assets/enemy.png";
+        case AssetKind::Floor:      return "assets/floor.png";
+        case AssetKind::Attack:     return "assets/attack.png";
+        case AssetKind::Item:       return "assets/item.png";
+        case AssetKind::Background:  return nullptr;  // sized to the window; generated
+    }
+    return nullptr;
+}
+
+SDL_Texture* PlaceholderTextures::loadFromFile(const char* path) {
+    if (!path) return nullptr;
+    int w = 0, h = 0, channels = 0;
+    unsigned char* pixels = stbi_load(path, &w, &h, &channels, 4);
+    if (!pixels) return nullptr;  // file missing/unreadable: caller falls back
+
+    SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormatFrom(
+        pixels, w, h, 32, w * 4, SDL_PIXELFORMAT_RGBA32);
+    SDL_Texture* tex = surface
+        ? SDL_CreateTextureFromSurface(m_renderer, surface)
+        : nullptr;
+    if (tex) SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+
+    SDL_FreeSurface(surface);
+    stbi_image_free(pixels);
+    return tex;
+}
+
 SDL_Texture* PlaceholderTextures::defaultFor(AssetKind kind) {
     if (!m_renderer) {
         return nullptr;
     }
+
+    // Pick the cache slot for this kind.
+    SDL_Texture** slot = nullptr;
     switch (kind) {
-        case AssetKind::Character:
-            if (!m_character) m_character = makeCharacter();
-            return m_character;
-        case AssetKind::Item:
-            if (!m_item) m_item = makeItem();
-            return m_item;
-        case AssetKind::Background:
-            if (!m_background) m_background = makeBackground();
-            return m_background;
-        case AssetKind::Vendor:
-            if (!m_vendor) m_vendor = makeVendor();
-            return m_vendor;
+        case AssetKind::Character:  slot = &m_character;  break;
+        case AssetKind::Item:       slot = &m_item;       break;
+        case AssetKind::Background:  slot = &m_background;  break;
+        case AssetKind::Vendor:     slot = &m_vendor;     break;
+        case AssetKind::Enemy:      slot = &m_enemy;      break;
+        case AssetKind::Floor:      slot = &m_floor;      break;
+        case AssetKind::Attack:     slot = &m_attack;     break;
+    }
+    if (!slot) return nullptr;
+
+    if (!*slot) {
+        // Prefer the artist-supplied PNG; fall back to the procedural stand-in
+        // so the game always has something to draw.
+        *slot = loadFromFile(assetFileName(kind));
+        if (!*slot) *slot = makeProcedural(kind);
+    }
+    return *slot;
+}
+
+SDL_Texture* PlaceholderTextures::makeProcedural(AssetKind kind) {
+    switch (kind) {
+        case AssetKind::Character:  return makeCharacter();
+        case AssetKind::Item:       return makeItem();
+        case AssetKind::Background:  return makeBackground();
+        case AssetKind::Vendor:     return makeVendor();
+        case AssetKind::Enemy:      return makeEnemy();
+        case AssetKind::Floor:      return makeFloor();
+        case AssetKind::Attack:     return makeAttack();
     }
     return nullptr;
 }
@@ -184,11 +242,108 @@ SDL_Texture* PlaceholderTextures::makeVendor() {
     return tex;
 }
 
+// A 44x44 creature: a filled circle with a darker rim and two eyes. Authored
+// LIGHT/neutral on purpose so EnemySystem can tint it to each enemy type's
+// colour with a colour multiply (a red base would muddy the tints).
+SDL_Texture* PlaceholderTextures::makeEnemy() {
+    const int s = 44;
+    SDL_Texture* tex = makeTarget(m_renderer, s, s);
+    if (!tex) return nullptr;
+
+    SDL_SetRenderTarget(m_renderer, tex);
+    SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 0);
+    SDL_RenderClear(m_renderer);
+
+    const int center = s / 2;
+    const int radius = center - 2;
+    SDL_SetRenderDrawColor(m_renderer, 226, 228, 234, 255);  // light body
+    for (int y = -radius; y <= radius; ++y) {
+        const int half = static_cast<int>(
+            std::sqrt(static_cast<float>(radius * radius - y * y)));
+        SDL_RenderDrawLine(m_renderer, center - half, center + y,
+                           center + half, center + y);
+    }
+    // Darker rim.
+    SDL_SetRenderDrawColor(m_renderer, 150, 152, 164, 255);
+    SDL_Rect bounds{center - radius, center - radius, radius * 2, radius * 2};
+    SDL_RenderDrawRect(m_renderer, &bounds);
+    // Eyes (dark, so they stay readable under any tint).
+    SDL_SetRenderDrawColor(m_renderer, 40, 42, 54, 255);
+    SDL_Rect le{center - 12, center - 6, 8, 8};
+    SDL_Rect re{center + 4, center - 6, 8, 8};
+    SDL_RenderFillRect(m_renderer, &le);
+    SDL_RenderFillRect(m_renderer, &re);
+
+    SDL_SetRenderTarget(m_renderer, nullptr);
+    return tex;
+}
+
+// A 32x32 seamless floor tile: a dark base with a lighter grout line on the top
+// and left edges, so repeating it reads as a tiled grid.
+SDL_Texture* PlaceholderTextures::makeFloor() {
+    const int s = 32;
+    SDL_Texture* tex = makeTarget(m_renderer, s, s);
+    if (!tex) return nullptr;
+
+    SDL_SetRenderTarget(m_renderer, tex);
+    SDL_SetRenderDrawColor(m_renderer, 46, 46, 58, 255);
+    SDL_RenderClear(m_renderer);
+
+    SDL_SetRenderDrawColor(m_renderer, 58, 58, 72, 255);
+    SDL_RenderDrawLine(m_renderer, 0, 0, s - 1, 0);  // top grout
+    SDL_RenderDrawLine(m_renderer, 0, 0, 0, s - 1);  // left grout
+
+    SDL_SetRenderDrawColor(m_renderer, 34, 34, 44, 255);
+    SDL_Rect specks[3] = {{8, 20, 2, 2}, {22, 10, 2, 2}, {15, 15, 2, 2}};
+    for (const SDL_Rect& r : specks) SDL_RenderFillRect(m_renderer, &r);
+
+    SDL_SetRenderTarget(m_renderer, nullptr);
+    return tex;
+}
+
+// A 40x40 melee slash: a crescent of orange pixels on the right (+x) side, so
+// render code can rotate it to the swing direction.
+SDL_Texture* PlaceholderTextures::makeAttack() {
+    const int s = 40;
+    SDL_Texture* tex = makeTarget(m_renderer, s, s);
+    if (!tex) return nullptr;
+
+    SDL_SetRenderTarget(m_renderer, tex);
+    SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 0);
+    SDL_RenderClear(m_renderer);
+
+    // Crescent = the area inside an outer circle but outside an inner circle
+    // shifted left, keeping only the right-hand arc.
+    const float cx = s * 0.5f;
+    const float cy = s * 0.5f;
+    const float outer = s * 0.46f;
+    const float inner = s * 0.40f;
+    const float shift = s * 0.16f;  // pushes the cut-out left -> arc on the right
+    SDL_SetRenderDrawColor(m_renderer, 255, 130, 50, 235);
+    for (int y = 0; y < s; ++y) {
+        for (int x = 0; x < s; ++x) {
+            const float dxO = x - cx,        dyO = y - cy;
+            const float dxI = x - (cx - shift), dyI = y - cy;
+            const bool inOuter = dxO * dxO + dyO * dyO <= outer * outer;
+            const bool inInner = dxI * dxI + dyI * dyI <= inner * inner;
+            if (inOuter && !inInner && x >= cx - shift) {
+                SDL_RenderDrawPoint(m_renderer, x, y);
+            }
+        }
+    }
+
+    SDL_SetRenderTarget(m_renderer, nullptr);
+    return tex;
+}
+
 void PlaceholderTextures::destroy() {
     if (m_character)  { SDL_DestroyTexture(m_character);  m_character  = nullptr; }
     if (m_item)       { SDL_DestroyTexture(m_item);       m_item       = nullptr; }
     if (m_background) { SDL_DestroyTexture(m_background); m_background = nullptr; }
     if (m_vendor)     { SDL_DestroyTexture(m_vendor);     m_vendor     = nullptr; }
+    if (m_enemy)      { SDL_DestroyTexture(m_enemy);      m_enemy      = nullptr; }
+    if (m_floor)      { SDL_DestroyTexture(m_floor);      m_floor      = nullptr; }
+    if (m_attack)     { SDL_DestroyTexture(m_attack);     m_attack     = nullptr; }
 }
 
 }  // namespace gaia

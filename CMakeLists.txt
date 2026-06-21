@@ -49,6 +49,7 @@ add_executable(${PROJECT_NAME}
     src/SpellCaster.cpp
     src/Room.cpp
     src/Enemy.cpp
+    src/EnemyTypes.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)

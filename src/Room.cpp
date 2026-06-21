@@ -1,5 +1,7 @@
 #include "Room.hpp"
 
+#include <algorithm>
+
 namespace gaia {
 
 void RoomSystem::init(int windowWidth, int windowHeight) {
@@ -22,13 +24,175 @@ void RoomSystem::init(int windowWidth, int windowHeight) {
     hub.vendors.push_back(SDL_Rect{1220, 760, 80, 96});
     m_rooms.push_back(hub);
 
-    // Room 1: the first run map. It is intentionally much larger than the
-    // logical screen so gameplay uses camera scrolling instead of showing it all.
-    Room run;
-    run.width  = 2600;
-    run.height = 1800;
-    run.floor  = SDL_Color{38, 44, 40, 255};
-    m_rooms.push_back(run);
+    // Room 1: the run map. A placeholder layout lives here until a run starts;
+    // startRun() swaps in a randomly chosen layout each time. It is intentionally
+    // much larger than the logical screen so gameplay uses camera scrolling.
+    m_rooms.push_back(makeRunRoom(0));
+}
+
+// The library of run-room layouts. Each varies the interior size, the floor
+// colour, the pits/holes carved out of the floor, and where enemies spawn. Add
+// a new layout here and bump RoomSystem::kRunLayoutCount to include it in the
+// random rotation. Coordinates are world-space with the interior's top-left at
+// (0, 0); every layout keeps a clear safe zone around its centre because the
+// player spawns there (see startRun()).
+Room RoomSystem::makeRunRoom(int layout) {
+    Room r;
+    r.hasRunDoor = false;
+
+    switch (layout) {
+        case 0: {  // "Arena" — compact, open, a ring of foes around the spawn.
+            r.width  = 1600;
+            r.height = 1100;
+            r.floor  = SDL_Color{38, 44, 40, 255};
+            const int cx = r.width / 2, cy = r.height / 2;
+            r.enemySpawns = {
+                {cx - 420, cy - 260}, {cx + 420, cy - 260},
+                {cx - 540, cy},       {cx + 540, cy},
+                {cx - 420, cy + 260}, {cx + 420, cy + 260},
+                {cx,       cy - 330}, {cx,       cy + 330},
+            };
+            break;
+        }
+        case 1: {  // "Twin Pits" — two big pits flank a central corridor.
+            r.width  = 2200;
+            r.height = 1500;
+            r.floor  = SDL_Color{44, 40, 52, 255};
+            r.holes = {
+                SDL_Rect{280, 500, 520, 500},
+                SDL_Rect{1400, 500, 520, 500},
+            };
+            r.enemySpawns = {
+                {1100, 230}, {900, 250}, {1300, 250},
+                {1100, 1270}, {900, 1250}, {1300, 1250},
+                {170, 750}, {2030, 750},
+            };
+            break;
+        }
+        case 2: {  // "Long Hall" — wide and short, scattered small pits.
+            r.width  = 3000;
+            r.height = 900;
+            r.floor  = SDL_Color{40, 46, 52, 255};
+            r.holes = {
+                SDL_Rect{500, 330, 240, 200},
+                SDL_Rect{1100, 150, 220, 180},
+                SDL_Rect{1700, 520, 240, 180},
+                SDL_Rect{2300, 330, 240, 200},
+            };
+            r.enemySpawns = {
+                {300, 200}, {300, 700}, {1500, 160}, {1500, 740},
+                {2700, 200}, {2700, 700}, {2000, 450},
+            };
+            break;
+        }
+        case 3: {  // "Grand Hall" — large square, four corner pits, a plus path.
+            r.width  = 2400;
+            r.height = 2400;
+            r.floor  = SDL_Color{48, 42, 58, 255};
+            r.holes = {
+                SDL_Rect{360, 360, 420, 420},
+                SDL_Rect{1620, 360, 420, 420},
+                SDL_Rect{360, 1620, 420, 420},
+                SDL_Rect{1620, 1620, 420, 420},
+            };
+            // Spawns sit on the clear "plus" corridor between the corner pits.
+            r.enemySpawns = {
+                {1200, 240}, {1000, 300}, {1400, 300},
+                {1200, 2160}, {1000, 2100}, {1400, 2100},
+                {240, 1200}, {2160, 1200},
+            };
+            break;
+        }
+        case 4:
+        default: {  // "Gauntlet" — vertical pit barriers with central gaps.
+            r.width  = 2600;
+            r.height = 1400;
+            r.floor  = SDL_Color{42, 40, 48, 255};
+            r.holes = {
+                SDL_Rect{600, 0, 200, 560},   SDL_Rect{600, 840, 200, 560},
+                SDL_Rect{1800, 0, 200, 560},  SDL_Rect{1800, 840, 200, 560},
+            };
+            r.enemySpawns = {
+                {1200, 300}, {1200, 1100}, {2300, 380}, {2300, 1020},
+                {2470, 700}, {1000, 700},
+            };
+            break;
+        }
+    }
+
+    // Every run room has one exit door on the right wall that leads onward to a
+    // freshly generated room. All layouts keep the right-centre approach to this
+    // door reachable. (Later this can become a fixed "rotation" of rooms.)
+    r.doors.push_back(Door{Side::Right, 1, /*generatesNext=*/true});
+    return r;
+}
+
+// A vendor/shop room: a small, enemy-free room with a shopkeeper and a row of
+// item pedestals. Because it has no enemies its exit door is unlocked on entry,
+// so the player can browse and leave whenever. Buying is not implemented yet;
+// each pedestal just carries placeholder ware data for the future economy.
+Room RoomSystem::makeVendorRoom() {
+    Room r;
+    r.hasRunDoor = false;
+    r.isVendorRoom = true;
+    r.width  = 1500;
+    r.height = 1000;
+    r.floor  = SDL_Color{54, 46, 40, 255};  // warmer "shop" tone
+
+    const int cx = r.width / 2;
+    // Shopkeeper stall near the top-centre (reuses the vendor sprite).
+    r.vendors.push_back(SDL_Rect{cx - 40, 150, 80, 96});
+
+    // A small per-room catalogue. These are stand-ins; a real run would draw a
+    // curated, run-specific inventory here.
+    static const struct { const char* name; int price; } catalogue[] = {
+        {"Health Vial",  30}, {"Spell Scroll", 45}, {"Power Core",  60},
+        {"Shield Cell",  35}, {"Swift Boots",  50}, {"Arcane Gem",  70},
+    };
+    constexpr int kCatalogueSize =
+        static_cast<int>(sizeof(catalogue) / sizeof(catalogue[0]));
+
+    constexpr int kItemCount = 3;        // wares this vendor offers
+    constexpr int kSpacing   = 240;      // gap between pedestals
+    const int rowY    = r.height / 2 + 120;
+    const int startX  = cx - kSpacing;   // three pedestals centred on cx
+    std::uniform_int_distribution<int> pick(0, kCatalogueSize - 1);
+    for (int i = 0; i < kItemCount; ++i) {
+        const auto& entry = catalogue[pick(m_rng)];
+        ShopItem item;
+        item.rect  = SDL_Rect{startX + i * kSpacing - 24, rowY - 24, 48, 48};
+        item.name  = entry.name;
+        item.price = entry.price;
+        r.shopItems.push_back(item);
+    }
+
+    r.doors.push_back(Door{Side::Right, 1, /*generatesNext=*/true});
+    return r;
+}
+
+// Chooses the next run room. The vendor room is a probability spawn whose chance
+// rises with run depth; it is forced after a boss (future), and never spawns two
+// rooms in a row. Otherwise a random combat layout is built.
+Room RoomSystem::makeNextRunRoom() {
+    bool vendor = false;
+    if (m_forceVendorNext) {
+        vendor = true;  // guaranteed after a boss kill (hook; not triggered yet)
+    } else if (m_roomsSinceVendor >= 1) {  // at least one normal room between vendors
+        const float chance = std::min(
+            kVendorChanceCap,
+            kVendorBaseChance + kVendorChanceStep * static_cast<float>(m_runDepth));
+        std::uniform_real_distribution<float> roll(0.0f, 1.0f);
+        vendor = roll(m_rng) < chance;
+    }
+    m_forceVendorNext = false;
+
+    if (vendor) {
+        m_roomsSinceVendor = 0;
+        return makeVendorRoom();
+    }
+    ++m_roomsSinceVendor;
+    std::uniform_int_distribution<int> pick(0, kRunLayoutCount - 1);
+    return makeRunRoom(pick(m_rng));
 }
 
 SDL_Rect RoomSystem::interiorRectFor(const Room& room) const {
@@ -67,10 +231,26 @@ void RoomSystem::resetToHub(float& px, float& py, float size) {
 }
 
 void RoomSystem::startRun(float& px, float& py, float size) {
+    // The run always opens on a combat room, never a vendor.
+    std::uniform_int_distribution<int> pick(0, kRunLayoutCount - 1);
+    m_rooms[1] = makeRunRoom(pick(m_rng));
+    m_runDepth = 0;
+    m_roomsSinceVendor = 1;   // opener counts as one normal room
+    m_forceVendorNext = false;
+
     m_current = 1;
     const SDL_Rect r = interiorRect();
+    // Layouts keep their centre clear, so the player always spawns on solid floor.
     px = static_cast<float>(r.x + r.w / 2) - size * 0.5f;
     py = static_cast<float>(r.y + r.h / 2) - size * 0.5f;
+}
+
+void RoomSystem::advanceToNextRoom(Side entrySide, float& px, float& py, float size) {
+    // Move one room deeper, then build the next room (combat or vendor) and
+    // enter it from the wall the player came through.
+    ++m_runDepth;
+    m_rooms[1] = makeNextRunRoom();
+    enterRoom(1, entrySide, px, py, size);
 }
 
 Side RoomSystem::opposite(Side s) {
@@ -104,7 +284,7 @@ void RoomSystem::enterRoom(int target, Side entrySide, float& px, float& py, flo
     }
 }
 
-bool RoomSystem::resolvePlayer(float& px, float& py, float size) {
+bool RoomSystem::resolvePlayer(float& px, float& py, float size, bool doorsUnlocked) {
     const SDL_Rect r = interiorRect();
     const float left   = static_cast<float>(r.x);
     const float top    = static_cast<float>(r.y);
@@ -119,7 +299,11 @@ bool RoomSystem::resolvePlayer(float& px, float& py, float size) {
 
     // A door is crossed when the player reaches its wall while aligned with the
     // (centered) opening. Checked before clamping so the door isn't a wall.
+    // While the room is sealed (doorsUnlocked == false) this loop is skipped, so
+    // the clamp below stops the player at the threshold like any other wall.
     for (const Door& d : current().doors) {
+        if (!doorsUnlocked) break;
+
         bool crossing = false;
         switch (d.side) {
             case Side::Top:
@@ -136,7 +320,11 @@ bool RoomSystem::resolvePlayer(float& px, float& py, float size) {
                 break;
         }
         if (crossing) {
-            enterRoom(d.targetRoom, opposite(d.side), px, py, size);
+            if (d.generatesNext) {
+                advanceToNextRoom(opposite(d.side), px, py, size);
+            } else {
+                enterRoom(d.targetRoom, opposite(d.side), px, py, size);
+            }
             return true;
         }
     }
@@ -146,11 +334,37 @@ bool RoomSystem::resolvePlayer(float& px, float& py, float size) {
     else if (px > right)  px = right;
     if (py < top)         py = top;
     else if (py > bottom) py = bottom;
+
+    // Pits are impassable: if the player AABB overlaps a hole, push it back out
+    // along whichever axis has the shallowest overlap (so they slide along the
+    // pit's edge rather than snapping across it).
+    for (const SDL_Rect& hole : current().holes) {
+        const float hl = static_cast<float>(hole.x);
+        const float hr = static_cast<float>(hole.x + hole.w);
+        const float ht = static_cast<float>(hole.y);
+        const float hb = static_cast<float>(hole.y + hole.h);
+        const float pl = px, pr = px + size, pt = py, pb = py + size;
+        if (pr <= hl || pl >= hr || pb <= ht || pt >= hb) {
+            continue;  // no overlap
+        }
+        const float penLeft  = pr - hl;  // distance to clear by moving left
+        const float penRight = hr - pl;  // ... right
+        const float penUp    = pb - ht;  // ... up
+        const float penDown  = hb - pt;  // ... down
+        const float minX = std::min(penLeft, penRight);
+        const float minY = std::min(penUp, penDown);
+        if (minX < minY) {
+            px += (penLeft < penRight) ? -penLeft : penRight;
+        } else {
+            py += (penUp < penDown) ? -penUp : penDown;
+        }
+    }
     return false;
 }
 
 void RoomSystem::render(SDL_Renderer* renderer, float cameraX, float cameraY,
-                        SDL_Texture* vendorTexture) const {
+                        SDL_Texture* vendorTexture,
+                        SDL_Texture* floorTexture) const {
     const Room&    room     = current();
     const SDL_Rect interior = interiorRect();
     auto screenRect = [&](const SDL_Rect& world) {
@@ -162,27 +376,53 @@ void RoomSystem::render(SDL_Renderer* renderer, float cameraX, float cameraY,
     };
 
     // Floor.
-    SDL_SetRenderDrawColor(renderer, room.floor.r, room.floor.g, room.floor.b, 255);
     const SDL_Rect floor = screenRect(interior);
-    SDL_RenderFillRect(renderer, &floor);
-
-    // A subtle floor grid makes the hub/readable placeholder maps feel textured.
-    SDL_SetRenderDrawColor(renderer, room.floor.r + 12, room.floor.g + 12,
-                           room.floor.b + 12, 255);
     constexpr int kTile = 96;
-    for (int x = interior.x; x <= interior.x + interior.w; x += kTile) {
-        SDL_RenderDrawLine(renderer,
-                           static_cast<int>(x - cameraX),
-                           static_cast<int>(interior.y - cameraY),
-                           static_cast<int>(x - cameraX),
-                           static_cast<int>(interior.y + interior.h - cameraY));
+    if (floorTexture) {
+        // Tile the floor sprite across the interior. Tiles are anchored to world
+        // coordinates so they stay put as the camera moves, and clipped to the
+        // interior so edge tiles never spill onto the walls.
+        SDL_RenderSetClipRect(renderer, &floor);
+        for (int y = interior.y; y < interior.y + interior.h; y += kTile) {
+            for (int x = interior.x; x < interior.x + interior.w; x += kTile) {
+                SDL_Rect dst{static_cast<int>(x - cameraX),
+                             static_cast<int>(y - cameraY), kTile, kTile};
+                SDL_RenderCopy(renderer, floorTexture, nullptr, &dst);
+            }
+        }
+        SDL_RenderSetClipRect(renderer, nullptr);
+    } else {
+        // Fallback: a flat colour with a subtle grid so movement reads.
+        SDL_SetRenderDrawColor(renderer, room.floor.r, room.floor.g, room.floor.b, 255);
+        SDL_RenderFillRect(renderer, &floor);
+        SDL_SetRenderDrawColor(renderer, room.floor.r + 12, room.floor.g + 12,
+                               room.floor.b + 12, 255);
+        for (int x = interior.x; x <= interior.x + interior.w; x += kTile) {
+            SDL_RenderDrawLine(renderer,
+                               static_cast<int>(x - cameraX),
+                               static_cast<int>(interior.y - cameraY),
+                               static_cast<int>(x - cameraX),
+                               static_cast<int>(interior.y + interior.h - cameraY));
+        }
+        for (int y = interior.y; y <= interior.y + interior.h; y += kTile) {
+            SDL_RenderDrawLine(renderer,
+                               static_cast<int>(interior.x - cameraX),
+                               static_cast<int>(y - cameraY),
+                               static_cast<int>(interior.x + interior.w - cameraX),
+                               static_cast<int>(y - cameraY));
+        }
     }
-    for (int y = interior.y; y <= interior.y + interior.h; y += kTile) {
-        SDL_RenderDrawLine(renderer,
-                           static_cast<int>(interior.x - cameraX),
-                           static_cast<int>(y - cameraY),
-                           static_cast<int>(interior.x + interior.w - cameraX),
-                           static_cast<int>(y - cameraY));
+
+    // Pits in the floor: a dark hole with a slightly lighter rim for depth.
+    for (const SDL_Rect& hole : room.holes) {
+        const SDL_Rect h = screenRect(hole);
+        SDL_SetRenderDrawColor(renderer, 10, 10, 14, 255);
+        SDL_RenderFillRect(renderer, &h);
+        SDL_SetRenderDrawColor(renderer, 34, 36, 46, 255);
+        SDL_RenderDrawRect(renderer, &h);
+        const SDL_Rect lip{h.x + 4, h.y + 4, h.w - 8, h.h - 8};
+        SDL_SetRenderDrawColor(renderer, 20, 22, 28, 255);
+        SDL_RenderDrawRect(renderer, &lip);
     }
 
     // Wall frame around the floor.
@@ -247,6 +487,27 @@ void RoomSystem::render(SDL_Renderer* renderer, float cameraX, float cameraY,
             SDL_RenderFillRect(renderer, &dst);
         }
         SDL_SetRenderDrawColor(renderer, 255, 220, 120, 255);
+        SDL_RenderDrawRect(renderer, &dst);
+    }
+
+    // Vendor wares: a pedestal with a glowing item marker on top. The item's
+    // name/price are drawn by the HUD layer (Game) where the font lives.
+    for (const ShopItem& item : room.shopItems) {
+        const SDL_Rect dst = screenRect(item.rect);
+        // Pedestal base.
+        SDL_SetRenderDrawColor(renderer, 70, 60, 52, 255);
+        SDL_Rect base{dst.x - 4, dst.y + dst.h - 10, dst.w + 8, 14};
+        SDL_RenderFillRect(renderer, &base);
+        SDL_SetRenderDrawColor(renderer, 110, 96, 80, 255);
+        SDL_RenderDrawRect(renderer, &base);
+        // Item marker (dimmed once purchased, for the future economy).
+        if (item.purchased) {
+            SDL_SetRenderDrawColor(renderer, 90, 90, 96, 255);
+        } else {
+            SDL_SetRenderDrawColor(renderer, 245, 215, 120, 255);
+        }
+        SDL_RenderFillRect(renderer, &dst);
+        SDL_SetRenderDrawColor(renderer, 255, 245, 200, 255);
         SDL_RenderDrawRect(renderer, &dst);
     }
 }

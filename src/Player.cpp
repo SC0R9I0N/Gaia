@@ -31,7 +31,7 @@ void Player::roll() {
     m_invulnTimer = kRollDuration + kInvulnBuffer;
 }
 
-void Player::attack() {
+void Player::attack(float targetX, float targetY) {
     // A roll can't be interrupted by a swing; otherwise honor the cooldown.
     if (m_state == State::Rolling || m_attackCooldownTimer > 0.0f) {
         return;
@@ -39,6 +39,19 @@ void Player::attack() {
     m_state = State::Attacking;
     m_attackTimer = kAttackDuration;
     m_attackCooldownTimer = kAttackCooldown;
+
+    // Aim the swing toward the cursor rather than the movement-facing direction.
+    const float dx = targetX - (m_x + kSize * 0.5f);
+    const float dy = targetY - (m_y + kSize * 0.5f);
+    const float len = std::sqrt(dx * dx + dy * dy);
+    if (len > 0.0001f) {
+        m_attackDirX = dx / len;
+        m_attackDirY = dy / len;
+    } else {
+        // Cursor is on the player: fall back to the current facing.
+        m_attackDirX = m_facingX;
+        m_attackDirY = m_facingY;
+    }
 }
 
 void Player::useItem() {
@@ -78,6 +91,12 @@ void Player::update(float dt, const Uint8* keyboard, const Keybindings& binds) {
         if (binds.isHeld(Action::MoveLeft,  keyboard)) moveX -= 1.0f;
         if (binds.isHeld(Action::MoveRight, keyboard)) moveX += 1.0f;
 
+        // Sprite facing only ever points left or right (this isn't a fully
+        // top-down view, so the texture never tilts). Horizontal input sets the
+        // side; pure vertical movement leaves the previous facing untouched.
+        if (moveX > 0.0f)      m_textureFacing = 1;
+        else if (moveX < 0.0f) m_textureFacing = -1;
+
         if (moveX != 0.0f || moveY != 0.0f) {
             const float len = std::sqrt(moveX * moveX + moveY * moveY);
             moveX /= len;  // normalize so diagonals aren't faster
@@ -111,8 +130,8 @@ bool Player::attackHitbox(SDL_Rect* out) const {
     const float hbW   = 40.0f;
     const float hbH   = 40.0f;
     const float reach = 34.0f;
-    const float cx = m_x + kSize * 0.5f + m_facingX * (kSize * 0.5f + reach * 0.5f);
-    const float cy = m_y + kSize * 0.5f + m_facingY * (kSize * 0.5f + reach * 0.5f);
+    const float cx = m_x + kSize * 0.5f + m_attackDirX * (kSize * 0.5f + reach * 0.5f);
+    const float cy = m_y + kSize * 0.5f + m_attackDirY * (kSize * 0.5f + reach * 0.5f);
     out->x = static_cast<int>(cx - hbW * 0.5f);
     out->y = static_cast<int>(cy - hbH * 0.5f);
     out->w = static_cast<int>(hbW);
@@ -123,18 +142,52 @@ bool Player::attackHitbox(SDL_Rect* out) const {
 void Player::render(SDL_Renderer* renderer, float cameraX, float cameraY) {
     SDL_Texture* tex = m_textures ? m_textures->defaultFor(AssetKind::Character) : nullptr;
 
-    // Melee swing: a translucent red hitbox in front of the character.
+    // Melee swing: the slash sprite, rotated to the cursor-aimed swing
+    // direction and centred on the hitbox. Falls back to a translucent red
+    // rectangle if no attack texture is available.
     SDL_Rect hitbox;
     if (attackHitbox(&hitbox)) {
-        hitbox.x -= static_cast<int>(cameraX);
-        hitbox.y -= static_cast<int>(cameraY);
-        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(renderer, 235, 90, 70, 150);
-        SDL_RenderFillRect(renderer, &hitbox);
+        SDL_Texture* slash =
+            m_textures ? m_textures->defaultFor(AssetKind::Attack) : nullptr;
+        if (slash) {
+            constexpr int kSlashSize = 64;
+            const int centerX = hitbox.x + hitbox.w / 2;
+            const int centerY = hitbox.y + hitbox.h / 2;
+            const SDL_Rect dst{
+                centerX - kSlashSize / 2 - static_cast<int>(cameraX),
+                centerY - kSlashSize / 2 - static_cast<int>(cameraY),
+                kSlashSize, kSlashSize};
+            const double angle = std::atan2(m_attackDirY, m_attackDirX) * 180.0 / kPi;
+
+            // The attack texture is a horizontal sprite sheet of square frames
+            // (frame size == sheet height), so an artist can add frames just by
+            // widening the PNG. Pick the frame for how far the swing has played.
+            int sheetW = 0, sheetH = 0;
+            SDL_QueryTexture(slash, nullptr, nullptr, &sheetW, &sheetH);
+            const int frameSize  = sheetH > 0 ? sheetH : 1;
+            const int frameCount = sheetW / frameSize > 0 ? sheetW / frameSize : 1;
+            // attackTimer counts kAttackDuration -> 0, so progress runs 0 -> 1.
+            const float progress = 1.0f - (m_attackTimer / kAttackDuration);
+            int frame = static_cast<int>(progress * frameCount);
+            if (frame < 0) frame = 0;
+            if (frame >= frameCount) frame = frameCount - 1;
+            const SDL_Rect src{frame * frameSize, 0, frameSize, frameSize};
+
+            SDL_RenderCopyEx(renderer, slash, &src, &dst, angle, nullptr,
+                             SDL_FLIP_NONE);
+        } else {
+            SDL_Rect screenHit{hitbox.x - static_cast<int>(cameraX),
+                               hitbox.y - static_cast<int>(cameraY),
+                               hitbox.w, hitbox.h};
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(renderer, 235, 90, 70, 150);
+            SDL_RenderFillRect(renderer, &screenHit);
+        }
     }
 
-    // The character itself, rotated to face its movement direction. While
-    // invulnerable it blinks so the i-frames are visible.
+    // The character itself. The sprite (authored facing right) only ever flips
+    // left/right to match m_textureFacing — never rotated — since this view is
+    // not fully top-down. While invulnerable it blinks so the i-frames show.
     const SDL_Rect dst{
         static_cast<int>(m_x - cameraX),
         static_cast<int>(m_y - cameraY),
@@ -146,8 +199,9 @@ void Player::render(SDL_Renderer* renderer, float cameraX, float cameraY) {
             alpha = 110;
         }
         SDL_SetTextureAlphaMod(tex, alpha);
-        const double angle = std::atan2(m_facingY, m_facingX) * 180.0 / kPi;
-        SDL_RenderCopyEx(renderer, tex, nullptr, &dst, angle, nullptr, SDL_FLIP_NONE);
+        const SDL_RendererFlip flip =
+            m_textureFacing < 0 ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
+        SDL_RenderCopyEx(renderer, tex, nullptr, &dst, 0.0, nullptr, flip);
         SDL_SetTextureAlphaMod(tex, 255);  // texture is shared; restore it
     } else {
         // Fallback if textures are unavailable.

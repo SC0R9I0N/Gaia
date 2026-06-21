@@ -28,8 +28,9 @@ public:
     void roll();      // short dodge burst in the facing direction
     void useItem();   // placeholder item effect
 
-    // Swing the melee attack. Bound to the left mouse button by Game.
-    void attack();
+    // Swing the melee attack toward (targetX, targetY) in world space (the
+    // cursor position). Bound to the left mouse button by Game.
+    void attack(float targetX, float targetY);
 
     // Advance one frame. keyboard is SDL_GetKeyboardState(); the keybindings map
     // movement keys to directions. Movement is unclamped here; the RoomSystem
@@ -74,8 +75,11 @@ private:
 
     float m_x = 0.0f;
     float m_y = 0.0f;
-    float m_facingX = 1.0f;  // unit facing vector, starts pointing right
+    float m_facingX = 1.0f;  // unit movement-facing vector (used by roll/attack)
     float m_facingY = 0.0f;
+    // Which way the sprite faces on screen: +1 = right, -1 = left. Only flips on
+    // horizontal movement; the sprite is never rotated in this perspective.
+    int m_textureFacing = 1;
 
     State m_state = State::Normal;
 
@@ -88,6 +92,8 @@ private:
 
     float m_attackTimer         = 0.0f;
     float m_attackCooldownTimer = 0.0f;
+    float m_attackDirX = 1.0f;  // swing direction, set toward the cursor on attack
+    float m_attackDirY = 0.0f;
 
     float m_itemTimer = 0.0f;
     float m_spellTimer = 0.0f;

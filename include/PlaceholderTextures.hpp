@@ -4,12 +4,23 @@
 
 namespace gaia {
 
-// The kinds of game objects that need a visible stand-in until real art exists.
+// The kinds of game objects that need a texture. Each kind maps to one PNG in
+// assets/ (see assetFileName() in the .cpp) AND to a procedural fallback, so the
+// game always renders something even with no art files present.
+//
+// ART TEAM: to replace any of these, just drop a PNG with the matching name into
+// assets/ (player.png, enemy.png, vendor.png, floor.png, attack.png, ...). No
+// code change or rebuild needed — the file is loaded at runtime and used in
+// place of the procedural stand-in. assetFileName() in PlaceholderTextures.cpp
+// is the single source of truth for which file maps to which kind.
 enum class AssetKind {
-    Character,   // the player and (future) NPCs / enemies
+    Character,   // the player (and future NPCs)
     Item,        // pickups and usables
-    Background,  // the level backdrop
+    Background,  // the full-window backdrop
     Vendor,      // hub vendors / upgrade stations
+    Enemy,       // hostile creatures
+    Floor,       // tiled room floor
+    Attack,      // melee swing / attack animation
 };
 
 // Lazily creates and caches simple, procedurally-drawn SDL textures so every
@@ -38,10 +49,22 @@ public:
     void destroy();
 
 private:
+    // The PNG (under assets/) an artist can drop in to override a kind, or
+    // nullptr for kinds that have no file mapping. Single source of truth.
+    static const char* assetFileName(AssetKind kind);
+
+    // Loads a PNG into a texture, or returns nullptr if the file is missing.
+    SDL_Texture* loadFromFile(const char* path);
+
+    // Procedural fallbacks, used when the matching PNG is absent.
     SDL_Texture* makeCharacter();
     SDL_Texture* makeItem();
     SDL_Texture* makeBackground();
     SDL_Texture* makeVendor();
+    SDL_Texture* makeEnemy();
+    SDL_Texture* makeFloor();
+    SDL_Texture* makeAttack();
+    SDL_Texture* makeProcedural(AssetKind kind);
 
     SDL_Renderer* m_renderer = nullptr;
     int m_bgWidth  = 0;
@@ -51,6 +74,9 @@ private:
     SDL_Texture* m_item       = nullptr;
     SDL_Texture* m_background  = nullptr;
     SDL_Texture* m_vendor      = nullptr;
+    SDL_Texture* m_enemy       = nullptr;
+    SDL_Texture* m_floor       = nullptr;
+    SDL_Texture* m_attack      = nullptr;
 };
 
 }  // namespace gaia
