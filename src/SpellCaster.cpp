@@ -50,19 +50,13 @@ void SpellCaster::update(float deltaSeconds) {
     }
 
     if (m_spellActive) {
-        // Advance toward the target; stop and vanish once it is reached.
+        // Advance toward the target
         const float step = kSpellSpeed * deltaSeconds;
         const float dx = m_targetX - m_circleX;
         const float dy = m_targetY - m_circleY;
         const float remaining = std::sqrt(dx * dx + dy * dy);
-        if (step >= remaining) {
-            m_circleX = m_targetX;
-            m_circleY = m_targetY;
-            m_spellActive = false;
-        } else {
-            m_circleX += m_dirX * step;
-            m_circleY += m_dirY * step;
-        }
+        m_circleX += m_dirX * step;
+        m_circleY += m_dirY * step;
     }
 }
 
