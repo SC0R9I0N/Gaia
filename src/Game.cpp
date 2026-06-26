@@ -768,7 +768,17 @@ void Game::update(float deltaSeconds) {
         const bool doorsUnlocked = m_rooms.isHub() || m_enemies.empty();
         const bool roomChanged =
             m_rooms.resolvePlayer(px, py, m_player->size(), doorsUnlocked);
-        m_player->setPosition(px, py);
+        m_player->setPosition(px, py); 
+        
+        //resolve spell collisions with walls
+        float sx = m_player->getSpellX();
+        float sy = m_player->getSpellY();
+        bool clearSpell = m_rooms.resolveSpell(sx, sy, m_player->spellSize());
+        m_player->setSpellX(sx);
+        m_player->setSpellY(sy);
+
+        if (clearSpell) m_player->clearActiveSpell();
+       
         // Taking a door into a freshly generated run room loads its encounter.
         if (roomChanged && !m_rooms.isHub()) {
             m_enemies.spawnAt(m_rooms.currentEnemySpawns());

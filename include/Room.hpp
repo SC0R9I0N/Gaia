@@ -104,6 +104,10 @@ public:
     // simply clamped), which is how rooms stay sealed until they are cleared.
     bool resolvePlayer(float& px, float& py, float size, bool doorsUnlocked);
 
+    //clamps spells within the current room's walls
+    //will be combined with enemy collision so spells have proper collision
+    bool resolveSpell(float& sx, float& sy, float size);
+
     static constexpr int   kWall       = 16;    // wall thickness, pixels
     static constexpr int   kDoorWidth  = 120;   // door opening, pixels
     static constexpr float kEntryInset = 10.0f; // how far inside a door to spawn

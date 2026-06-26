@@ -45,6 +45,12 @@ public:
     float size() const { return kSize; }
     void setPosition(float x, float y) { m_x = x; m_y = y; }
 
+    float getSpellX() const { return m_spellCaster.getSpellX(); }
+    float getSpellY() const { return m_spellCaster.getSpellY(); }
+    void setSpellX(float updatedSpellX) { m_spellCaster.setSpellX(updatedSpellX); }
+    void setSpellY(float updatedSpellY) { m_spellCaster.setSpellY(updatedSpellY); }
+    float spellSize() const { return m_spellCaster.spellSize(); }
+
     // Exposed for future combat code (enemies, damage, etc.).
     bool isInvulnerable() const { return m_invulnTimer > 0.0f; }
     // Fills out with the active melee hitbox; returns false when not attacking.

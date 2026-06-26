@@ -98,7 +98,6 @@ void SpellCaster::clearActiveSpell() {
     m_spellActive = false;
 }
 
-//TODO: clean up eventually so theres not so much reused code
 void SpellCaster::resolveSequence(float startX, float startY, float targetX, float targetY) {
     // Match the entered sequence against the shared registry; first hit wins.
     for (const SpellDef& spell : spellRegistry()) {

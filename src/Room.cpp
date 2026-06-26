@@ -362,6 +362,22 @@ bool RoomSystem::resolvePlayer(float& px, float& py, float size, bool doorsUnloc
     return false;
 }
 
+bool RoomSystem::resolveSpell(float& sx, float& sy, float size) {
+    const SDL_Rect r = interiorRect();
+    const float left   = static_cast<float>(r.x) + size;
+    const float top    = static_cast<float>(r.y) + size;
+    const float right  = static_cast<float>(r.x + r.w) - size;
+    const float bottom = static_cast<float>(r.y + r.h) - size;
+
+    // clamp the spell inside the interior of the current room
+    if (sx < left)        return true;
+    else if (sx > right)  return true;
+    if (sy < top)         return true;
+    else if (sy > bottom) return true;
+
+    return false;
+}
+
 void RoomSystem::render(SDL_Renderer* renderer, float cameraX, float cameraY,
                         SDL_Texture* vendorTexture,
                         SDL_Texture* floorTexture) const {

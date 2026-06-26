@@ -45,6 +45,13 @@ public:
         void drawCircle(SDL_Renderer* renderer, int x_center, int y_center, int radius) const;
         int m_spellCast = 0;
 
+        //getters + setters
+        float getSpellX() const { return m_circleX; }
+        float getSpellY() const { return m_circleY; }
+        void setSpellX(float updatedSpellX) { m_circleX = updatedSpellX; }
+        void setSpellY(float updatedSpellY) { m_circleY = updatedSpellY; }
+        float spellSize() const { return kSpellRadius; }
+
 private:
         static constexpr float kSpellSpeed  = 600.0f;  // px/s projectile travel
         static constexpr int   kSpellRadius = 40;
