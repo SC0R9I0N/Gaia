@@ -6,9 +6,8 @@
 
 namespace gaia {
 
-// Broad behavioural category for an enemy. Movement AI is currently the same
-// "walk toward the player" for everyone; these classes exist so future combat
-// code can branch behaviour per archetype without reshuffling the data model.
+// Broad behavioural category for an enemy. EnemySystem branches on this to give
+// each archetype distinct movement while keeping spawn data compact.
 enum class EnemyClass {
     Melee,    // walks up and strikes
     Swarm,    // small, fast, fragile; meant to attack in numbers
@@ -19,9 +18,7 @@ enum class EnemyClass {
     Caster,   // summons minions / casts area effects
 };
 
-// The kind of offensive ability a type uses. NOTE: nothing fires these yet —
-// they are data describing each archetype's intended attack so the actual
-// behaviour can be wired up later without touching every spawn site.
+// The kind of offensive ability a type uses.
 enum class EnemyAbilityKind {
     None,
     MeleeStrike,
@@ -33,7 +30,7 @@ enum class EnemyAbilityKind {
     ArcaneBlast,
 };
 
-// One ability's tuning. Purely descriptive for now.
+// One ability's tuning.
 struct EnemyAbility {
     EnemyAbilityKind kind = EnemyAbilityKind::None;
     float cooldown = 0.0f;  // seconds between uses
@@ -52,7 +49,7 @@ struct EnemyType {
     int          health;          // hits to kill
     SDL_Color    color;           // body colour (tints the shared sprite)
     float        knockbackResist; // 0 = full knockback, 1 = immovable
-    EnemyAbility ability;         // primary ability (not yet fired)
+    EnemyAbility ability;         // primary ability
 };
 
 // Every archetype the game can spawn. To add an enemy, append one entry here —

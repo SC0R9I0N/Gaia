@@ -3,8 +3,8 @@
 namespace gaia {
 
 // The enemy bestiary. Each row varies size (radius), speed, health, durability
-// (knockbackResist), and the ability it is intended to use. Keep this readable:
-// it is the single source of truth designers tweak.
+// (knockbackResist), movement class, and primary ability. Keep this readable: it
+// is the single source of truth designers tweak.
 //
 //   name        class             radius speed  hp  colour (r,g,b,a)        kbRes  ability {kind, cooldown, range, damage}
 const std::vector<EnemyType>& enemyTypeRegistry() {

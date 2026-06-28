@@ -42,10 +42,36 @@ void PlaceholderTextures::init(SDL_Renderer* renderer, int backgroundWidth, int 
 const char* PlaceholderTextures::assetFileName(AssetKind kind) {
     switch (kind) {
         case AssetKind::Character:  return "assets/player.png";
+        case AssetKind::Character2: return "assets/character_2.png";
+        case AssetKind::Character3: return "assets/character_3.png";
+        case AssetKind::Character4: return "assets/character_4.png";
+        case AssetKind::Character5: return "assets/character_5.png";
+        case AssetKind::Character6: return "assets/character_6.png";
+        case AssetKind::Dash:       return "assets/dash.png";
+        case AssetKind::Dash2:      return "assets/dash_2.png";
+        case AssetKind::Dash3:      return "assets/dash_3.png";
+        case AssetKind::Dash4:      return "assets/dash_4.png";
+        case AssetKind::Dash5:      return "assets/dash_5.png";
+        case AssetKind::Dash6:      return "assets/dash_6.png";
         case AssetKind::Vendor:     return "assets/vendor.png";
+        case AssetKind::RuneVendor: return "assets/rune_vendor.png";
+        case AssetKind::ShadyVendor: return "assets/shady_vendor.png";
+        case AssetKind::ConsciousnessConsole: return "assets/consciousness_console.png";
+        case AssetKind::SkillTreeConsole: return "assets/skill_tree_console.png";
+        case AssetKind::ArtifactStorage: return "assets/artifact_storage.png";
+        case AssetKind::RunPortal:  return "assets/run_portal.png";
+        case AssetKind::GoldCurrency: return "assets/currency_gold.png";
+        case AssetKind::SkillCurrency: return "assets/currency_skill.png";
+        case AssetKind::ShadyCurrency: return "assets/currency_shady.png";
         case AssetKind::Enemy:      return "assets/enemy.png";
         case AssetKind::Floor:      return "assets/floor.png";
         case AssetKind::Attack:     return "assets/attack.png";
+        case AssetKind::HubFloor:   return "assets/hub_floor.png";
+        case AssetKind::HubWall:    return "assets/hub_wall.png";
+        case AssetKind::HubLantern: return "assets/hub_lantern.png";
+        case AssetKind::HubPillar:  return "assets/hub_pillar.png";
+        case AssetKind::HubUrn:     return "assets/hub_urn.png";
+        case AssetKind::HubBanner:  return "assets/hub_banner.png";
         case AssetKind::Item:       return "assets/item.png";
         case AssetKind::Background:  return nullptr;  // sized to the window; generated
     }
@@ -79,12 +105,38 @@ SDL_Texture* PlaceholderTextures::defaultFor(AssetKind kind) {
     SDL_Texture** slot = nullptr;
     switch (kind) {
         case AssetKind::Character:  slot = &m_character;  break;
+        case AssetKind::Character2: slot = &m_character2; break;
+        case AssetKind::Character3: slot = &m_character3; break;
+        case AssetKind::Character4: slot = &m_character4; break;
+        case AssetKind::Character5: slot = &m_character5; break;
+        case AssetKind::Character6: slot = &m_character6; break;
+        case AssetKind::Dash:       slot = &m_dash;       break;
+        case AssetKind::Dash2:      slot = &m_dash2;      break;
+        case AssetKind::Dash3:      slot = &m_dash3;      break;
+        case AssetKind::Dash4:      slot = &m_dash4;      break;
+        case AssetKind::Dash5:      slot = &m_dash5;      break;
+        case AssetKind::Dash6:      slot = &m_dash6;      break;
         case AssetKind::Item:       slot = &m_item;       break;
         case AssetKind::Background:  slot = &m_background;  break;
         case AssetKind::Vendor:     slot = &m_vendor;     break;
+        case AssetKind::RuneVendor: slot = &m_runeVendor; break;
+        case AssetKind::ShadyVendor: slot = &m_shadyVendor; break;
+        case AssetKind::ConsciousnessConsole: slot = &m_consciousnessConsole; break;
+        case AssetKind::SkillTreeConsole: slot = &m_skillTreeConsole; break;
+        case AssetKind::ArtifactStorage: slot = &m_artifactStorage; break;
+        case AssetKind::RunPortal:  slot = &m_runPortal; break;
+        case AssetKind::GoldCurrency: slot = &m_goldCurrency; break;
+        case AssetKind::SkillCurrency: slot = &m_skillCurrency; break;
+        case AssetKind::ShadyCurrency: slot = &m_shadyCurrency; break;
         case AssetKind::Enemy:      slot = &m_enemy;      break;
         case AssetKind::Floor:      slot = &m_floor;      break;
         case AssetKind::Attack:     slot = &m_attack;     break;
+        case AssetKind::HubFloor:   slot = &m_hubFloor;   break;
+        case AssetKind::HubWall:    slot = &m_hubWall;    break;
+        case AssetKind::HubLantern: slot = &m_hubLantern; break;
+        case AssetKind::HubPillar:  slot = &m_hubPillar;  break;
+        case AssetKind::HubUrn:     slot = &m_hubUrn;     break;
+        case AssetKind::HubBanner:  slot = &m_hubBanner;  break;
     }
     if (!slot) return nullptr;
 
@@ -100,12 +152,40 @@ SDL_Texture* PlaceholderTextures::defaultFor(AssetKind kind) {
 SDL_Texture* PlaceholderTextures::makeProcedural(AssetKind kind) {
     switch (kind) {
         case AssetKind::Character:  return makeCharacter();
+        case AssetKind::Character2: return makeCharacter();
+        case AssetKind::Character3: return makeCharacter();
+        case AssetKind::Character4: return makeCharacter();
+        case AssetKind::Character5: return makeCharacter();
+        case AssetKind::Character6: return makeCharacter();
+        case AssetKind::Dash:       return makeDash();
+        case AssetKind::Dash2:      return makeDash();
+        case AssetKind::Dash3:      return makeDash();
+        case AssetKind::Dash4:      return makeDash();
+        case AssetKind::Dash5:      return makeDash();
+        case AssetKind::Dash6:      return makeDash();
         case AssetKind::Item:       return makeItem();
         case AssetKind::Background:  return makeBackground();
         case AssetKind::Vendor:     return makeVendor();
+        case AssetKind::RuneVendor: return makeRuneVendor();
+        case AssetKind::ShadyVendor: return makeShadyVendor();
+        case AssetKind::ConsciousnessConsole: return makeConsciousnessConsole();
+        case AssetKind::SkillTreeConsole: return makeSkillTreeConsole();
+        case AssetKind::ArtifactStorage: return makeArtifactStorage();
+        case AssetKind::RunPortal:  return makeRunPortal();
+        case AssetKind::GoldCurrency: return makeGoldCurrency();
+        case AssetKind::SkillCurrency: return makeSkillCurrency();
+        case AssetKind::ShadyCurrency: return makeShadyCurrency();
         case AssetKind::Enemy:      return makeEnemy();
         case AssetKind::Floor:      return makeFloor();
         case AssetKind::Attack:     return makeAttack();
+        // Hub tileset fallbacks: only used if the PNGs are missing, so route to
+        // the closest existing stand-in rather than authoring new procedural art.
+        case AssetKind::HubFloor:   return makeFloor();
+        case AssetKind::HubWall:    return makeFloor();
+        case AssetKind::HubLantern: return makeItem();
+        case AssetKind::HubPillar:  return makeVendor();
+        case AssetKind::HubUrn:     return makeItem();
+        case AssetKind::HubBanner:  return makeVendor();
     }
     return nullptr;
 }
@@ -140,9 +220,12 @@ SDL_Texture* PlaceholderTextures::makeCharacter() {
         const int half = static_cast<int>(halfH * (1.0f - t));
         SDL_RenderDrawLine(m_renderer, x, cy - half, x, cy + half);
     }
-
     SDL_SetRenderTarget(m_renderer, nullptr);
     return tex;
+}
+
+SDL_Texture* PlaceholderTextures::makeDash() {
+    return makeCharacter();
 }
 
 // A 28x28 gold diamond with a darker outline.
@@ -242,6 +325,42 @@ SDL_Texture* PlaceholderTextures::makeVendor() {
     return tex;
 }
 
+SDL_Texture* PlaceholderTextures::makeRuneVendor() {
+    return makeVendor();
+}
+
+SDL_Texture* PlaceholderTextures::makeShadyVendor() {
+    return makeVendor();
+}
+
+SDL_Texture* PlaceholderTextures::makeConsciousnessConsole() {
+    return makeVendor();
+}
+
+SDL_Texture* PlaceholderTextures::makeSkillTreeConsole() {
+    return makeVendor();
+}
+
+SDL_Texture* PlaceholderTextures::makeArtifactStorage() {
+    return makeVendor();
+}
+
+SDL_Texture* PlaceholderTextures::makeRunPortal() {
+    return makeItem();
+}
+
+SDL_Texture* PlaceholderTextures::makeGoldCurrency() {
+    return makeItem();
+}
+
+SDL_Texture* PlaceholderTextures::makeSkillCurrency() {
+    return makeItem();
+}
+
+SDL_Texture* PlaceholderTextures::makeShadyCurrency() {
+    return makeItem();
+}
+
 // A 44x44 creature: a filled circle with a darker rim and two eyes. Authored
 // LIGHT/neutral on purpose so EnemySystem can tint it to each enemy type's
 // colour with a colour multiply (a red base would muddy the tints).
@@ -338,12 +457,38 @@ SDL_Texture* PlaceholderTextures::makeAttack() {
 
 void PlaceholderTextures::destroy() {
     if (m_character)  { SDL_DestroyTexture(m_character);  m_character  = nullptr; }
+    if (m_character2) { SDL_DestroyTexture(m_character2); m_character2 = nullptr; }
+    if (m_character3) { SDL_DestroyTexture(m_character3); m_character3 = nullptr; }
+    if (m_character4) { SDL_DestroyTexture(m_character4); m_character4 = nullptr; }
+    if (m_character5) { SDL_DestroyTexture(m_character5); m_character5 = nullptr; }
+    if (m_character6) { SDL_DestroyTexture(m_character6); m_character6 = nullptr; }
+    if (m_dash)       { SDL_DestroyTexture(m_dash);       m_dash       = nullptr; }
+    if (m_dash2)      { SDL_DestroyTexture(m_dash2);      m_dash2      = nullptr; }
+    if (m_dash3)      { SDL_DestroyTexture(m_dash3);      m_dash3      = nullptr; }
+    if (m_dash4)      { SDL_DestroyTexture(m_dash4);      m_dash4      = nullptr; }
+    if (m_dash5)      { SDL_DestroyTexture(m_dash5);      m_dash5      = nullptr; }
+    if (m_dash6)      { SDL_DestroyTexture(m_dash6);      m_dash6      = nullptr; }
     if (m_item)       { SDL_DestroyTexture(m_item);       m_item       = nullptr; }
     if (m_background) { SDL_DestroyTexture(m_background); m_background = nullptr; }
     if (m_vendor)     { SDL_DestroyTexture(m_vendor);     m_vendor     = nullptr; }
+    if (m_runeVendor) { SDL_DestroyTexture(m_runeVendor); m_runeVendor = nullptr; }
+    if (m_shadyVendor) { SDL_DestroyTexture(m_shadyVendor); m_shadyVendor = nullptr; }
+    if (m_consciousnessConsole) { SDL_DestroyTexture(m_consciousnessConsole); m_consciousnessConsole = nullptr; }
+    if (m_skillTreeConsole) { SDL_DestroyTexture(m_skillTreeConsole); m_skillTreeConsole = nullptr; }
+    if (m_artifactStorage) { SDL_DestroyTexture(m_artifactStorage); m_artifactStorage = nullptr; }
+    if (m_runPortal)  { SDL_DestroyTexture(m_runPortal);  m_runPortal  = nullptr; }
+    if (m_goldCurrency) { SDL_DestroyTexture(m_goldCurrency); m_goldCurrency = nullptr; }
+    if (m_skillCurrency) { SDL_DestroyTexture(m_skillCurrency); m_skillCurrency = nullptr; }
+    if (m_shadyCurrency) { SDL_DestroyTexture(m_shadyCurrency); m_shadyCurrency = nullptr; }
     if (m_enemy)      { SDL_DestroyTexture(m_enemy);      m_enemy      = nullptr; }
     if (m_floor)      { SDL_DestroyTexture(m_floor);      m_floor      = nullptr; }
     if (m_attack)     { SDL_DestroyTexture(m_attack);     m_attack     = nullptr; }
+    if (m_hubFloor)   { SDL_DestroyTexture(m_hubFloor);   m_hubFloor   = nullptr; }
+    if (m_hubWall)    { SDL_DestroyTexture(m_hubWall);    m_hubWall    = nullptr; }
+    if (m_hubLantern) { SDL_DestroyTexture(m_hubLantern); m_hubLantern = nullptr; }
+    if (m_hubPillar)  { SDL_DestroyTexture(m_hubPillar);  m_hubPillar  = nullptr; }
+    if (m_hubUrn)     { SDL_DestroyTexture(m_hubUrn);     m_hubUrn     = nullptr; }
+    if (m_hubBanner)  { SDL_DestroyTexture(m_hubBanner);  m_hubBanner  = nullptr; }
 }
 
 }  // namespace gaia

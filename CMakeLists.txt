@@ -52,6 +52,11 @@ add_executable(${PROJECT_NAME}
     src/EnemyTypes.cpp
 )
 
+if(WIN32)
+    enable_language(RC)
+    target_sources(${PROJECT_NAME} PRIVATE resources/app_icon.rc)
+endif()
+
 target_include_directories(${PROJECT_NAME} PRIVATE include)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2 SDL2::SDL2main SDL2_ttf::SDL2_ttf-static)

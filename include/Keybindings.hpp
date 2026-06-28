@@ -12,9 +12,9 @@ namespace gaia {
 
 // The set of player actions whose key can be changed in the settings menu.
 //
-// These are all keyboard bindings. Two inputs are intentionally NOT listed
-// here: the mouse-driven spell-cast sequence (left/right/middle to build a
-// fireball/lightning) and the Esc key that opens the pause menu, both fixed.
+// These are all keyboard bindings. The mouse-driven spell-cast sequence
+// (left/right/middle to build a fireball/lightning) and Esc pause/menu backing
+// are intentionally fixed.
 enum class Action {
     MoveUp,
     MoveDown,
@@ -23,6 +23,7 @@ enum class Action {
     Roll,
     UseItem,
     Spellbook,
+    Inventory,
     Count  // sentinel: number of actions, must stay last
 };
 
@@ -54,6 +55,7 @@ public:
         set(Action::Roll,      SDL_SCANCODE_SPACE);
         set(Action::UseItem,   SDL_SCANCODE_E);
         set(Action::Spellbook, SDL_SCANCODE_TAB);
+        set(Action::Inventory, SDL_SCANCODE_I);
     }
 
     // Human-readable action label, e.g. "Move Up".
@@ -66,6 +68,7 @@ public:
             case Action::Roll:      return "Roll / Dodge";
             case Action::UseItem:   return "Use Item";
             case Action::Spellbook: return "Spellbook";
+            case Action::Inventory: return "Inventory";
             default:                return "";
         }
     }
@@ -128,6 +131,7 @@ private:
             case Action::Roll:      return "Roll";
             case Action::UseItem:   return "UseItem";
             case Action::Spellbook: return "Spellbook";
+            case Action::Inventory: return "Inventory";
             default:                return "";
         }
     }

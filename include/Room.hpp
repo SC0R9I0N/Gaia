@@ -10,6 +10,17 @@ namespace gaia {
 // Which wall a door sits on.
 enum class Side { Top, Bottom, Left, Right };
 
+// The hub's sandstone tileset, bundled so RoomSystem::render takes one argument
+// instead of six. Any field may be null; render falls back to flat drawing then.
+struct HubTextures {
+    SDL_Texture* floor   = nullptr;  // seamless brick floor tile
+    SDL_Texture* wall    = nullptr;  // seamless brick wall tile
+    SDL_Texture* lantern = nullptr;  // animated lantern sprite sheet (square frames)
+    SDL_Texture* pillar  = nullptr;  // column decoration
+    SDL_Texture* urn     = nullptr;  // urn decoration
+    SDL_Texture* banner  = nullptr;  // hanging banner decoration
+};
+
 // A door is a centered opening on one wall that leads to another room. The
 // player re-enters the target room from the opposite wall's door.
 struct Door {
@@ -29,6 +40,20 @@ struct ShopItem {
     bool        purchased = false; // future: set true once bought
 };
 
+// A world prop the player collides with only at its base, but can walk behind
+// higher up (pillars, vendors, consoles, urns, ...). `draw` is the full sprite
+// rect (its bottom edge is the "feet" used for depth sorting against the
+// player); `collider` is the solid lower footprint.
+enum class PropKind {
+    Pillar, Urn, Vendor, RuneVendor, ShadyVendor,
+    Consciousness, SkillTree, Artifact
+};
+struct PropGeom {
+    SDL_Rect draw;
+    SDL_Rect collider;
+    PropKind kind;
+};
+
 // A single room: an interior of a fixed size (so the map is no longer one big
 // open field), a floor color, and the doors leading out of it.
 struct Room {
@@ -37,6 +62,16 @@ struct Room {
     SDL_Color floor;
     std::vector<Door> doors;
     std::vector<SDL_Rect> vendors;
+    SDL_Rect runeVendor{};
+    bool hasRuneVendor = false;
+    SDL_Rect shadyVendor{};
+    bool hasShadyVendor = false;
+    SDL_Rect consciousnessConsole{};
+    bool hasConsciousnessConsole = false;
+    SDL_Rect skillTreeConsole{};
+    bool hasSkillTreeConsole = false;
+    SDL_Rect artifactStorage{};
+    bool hasArtifactStorage = false;
     // Impassable pits in the floor. The player is pushed out of these (see
     // RoomSystem::resolvePlayer); they are also drawn as dark holes.
     std::vector<SDL_Rect> holes;
@@ -85,6 +120,11 @@ public:
     }
     // Whether the player overlaps the hub's run-start door.
     bool playerInRunDoor(float px, float py, float size) const;
+    bool playerInRuneVendor(float px, float py, float size) const;
+    bool playerInShadyVendor(float px, float py, float size) const;
+    bool playerInConsciousnessConsole(float px, float py, float size) const;
+    bool playerInSkillTreeConsole(float px, float py, float size) const;
+    bool playerInArtifactStorage(float px, float py, float size) const;
     // Moves the player to the hub spawn / run spawn.
     void resetToHub(float& px, float& py, float size);
     void startRun(float& px, float& py, float size);
@@ -95,7 +135,30 @@ public:
     // to fall back to the flat colour + grid. vendorTexture draws hub stalls.
     void render(SDL_Renderer* renderer, float cameraX, float cameraY,
                 SDL_Texture* vendorTexture,
+                SDL_Texture* runeVendorTexture,
+                SDL_Texture* shadyVendorTexture,
+                SDL_Texture* consciousnessConsoleTexture,
+                SDL_Texture* skillTreeConsoleTexture,
+                SDL_Texture* artifactStorageTexture,
+                SDL_Texture* runPortalTexture,
+                const HubTextures& hub,
                 SDL_Texture* floorTexture = nullptr) const;
+
+    // The current room's solid-base props (pillars, vendors, urns, consoles).
+    // Used both for collision and for the walk-behind occluder pass.
+    std::vector<PropGeom> currentProps() const;
+
+    // Re-draws props whose feet sit below the player (the player is standing
+    // behind them) on top of the player, so their tall art occludes correctly
+    // while their base still blocks. Call after the player has been drawn.
+    void renderOccluders(SDL_Renderer* renderer, float cameraX, float cameraY,
+                         SDL_Texture* vendorTexture,
+                         SDL_Texture* runeVendorTexture,
+                         SDL_Texture* shadyVendorTexture,
+                         SDL_Texture* consciousnessConsoleTexture,
+                         SDL_Texture* skillTreeConsoleTexture,
+                         SDL_Texture* artifactStorageTexture,
+                         const HubTextures& hub, float playerFeetY) const;
 
     // Clamps the player AABB (top-left px,py with the given size) to the current
     // room's walls. If the player steps through a door, switches to the target
@@ -103,6 +166,10 @@ public:
     // When doorsUnlocked is false the doors act as solid wall (the player is
     // simply clamped), which is how rooms stay sealed until they are cleared.
     bool resolvePlayer(float& px, float& py, float size, bool doorsUnlocked);
+
+    // Pit hazard test for the player. Pits are no longer solid to the player:
+    // when the player's centre crosses into one, Game handles the fall/respawn.
+    bool playerOverPit(float px, float py, float size) const;
 
     //clamps spells within the current room's walls
     //will be combined with enemy collision so spells have proper collision

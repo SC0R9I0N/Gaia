@@ -17,48 +17,60 @@ the file map and sizes.
 
 ## Known Issues
 
-- Players are unable to fall in pits
-- Enemies can phase through pits
-- May still be some non-functionality with some specific settings (will need to thoroughly check)
-- Combat is one-directional: enemies only chase and bump into the player, they
-  don't deal damage. There is no player health, so the player can't take damage
-  or die yet (runs have no fail state).
-- All enemy types currently share the same "walk straight at the player" AI.
-  Their class behaviours (ranged kiting, charging, bombing, summoning) and the
-  abilities defined in `EnemyTypes.cpp` are data only — nothing fires them yet.
+- Settings are still prototype-level and need a full pass for edge cases across
+  resolution, display mode, focus, and frame-limit combinations.
+- Combat has player health, death, enemy projectiles/area attacks, and spell
+  impacts, but damage tuning, enemy hit feedback, and encounter balance are still
+  rough.
 - When the player takes a door into a freshly generated room they appear against
   a blank wall; only the forward exit door is drawn, there is no entry doorway.
 - Spells only resolve when the cast is released (Middle Mouse); there's no live
-  feedback while entering a combo, and every spell renders the same placeholder
-  projectile (a travelling red circle) regardless of which spell was cast.
-- Vendors are decorative — they render but can't be interacted with. Vendor
-  rooms show their wares (name + price per pedestal) but **buying is not
-  implemented yet**, and the wares are placeholder items rolled per room rather
-  than a curated, run-specific inventory.
+  feedback while entering a combo.
+- Spell VFX now use per-spell projectile/enemy-hit/wall-hit sprite sheets, but
+  they are still placeholder-generated art and should be replaced or polished.
+- The hub is a procedural/tile-style layout drawn in code, not a single authored
+  map or external tilemap. This makes iteration quick but limits art direction.
+- Generated vendor rooms show their wares (name + price per pedestal), but
+  **buying is not implemented yet** there. Hub vendors are interactive: the rune
+  engine changes active spells, the shady dealer sells one risky run item, the
+  consciousness console swaps the active character texture, the skill tree
+  selector previews a non-interactive hologram tree, and Artifact Storage equips
+  one unlocked run artifact.
+- Currency exists as gold for run purchases, skill currency for future skill
+  points, and shady currency for shady-dealer purchases. Gold and rare shady
+  tokens drop from enemy kills; skill currency is earned by clearing rooms.
+- Meta-progression is saved between sessions, including researched spells,
+  active spell loadout, selected character, artifact state, skill currency,
+  shady currency, and inventory slot state. Abandoned runs roll back to their
+  run-start snapshot, while death keeps meta-progression but drops gold and
+  non-rune inventory items. This is still a text-file prototype save format.
 - The item action (E) is a placeholder effect (a brief shield + ring), not a
   real inventory/item.
 
 ## Future Implementations
 
-- Add more room layouts
-- Make it so pits are rarely large enough that the player cannot dash across them
-  - Make it so players can dash across/fall into pits
+- Replace or extend the procedural hub with an authored hub map/tilemap so walls,
+  lanterns, sandstone floors, and decorative ambience can be laid out by data
+  instead of hard-coded draw calls.
+- Add more run room layouts and room themes.
+- Make pit generation more fair and add intentional pit traversal/fall rules.
 - Add more environmental hazards (Water that slows you, lava that burns, etc.)
-- Wire up enemy AI and attacks using the per-type ability data in
-  `EnemyTypes.cpp` (ranged shots, charges, explosions, summons) and give each
-  enemy class its own movement behaviour
-- Add a player health / damage / death system so combat is two-sided, plus a
-  proper run win/lose flow and return-to-hub on completion
+- Add live spell combo feedback while casting, plus clearer spell cooldown/timing
+  feedback.
+- Expand the run win/lose flow beyond death/exit returning to the hub, including
+  rewards, summary screens, and a clearer distinction between abandon/death/win.
 - Replace the random room picker with the planned fixed room "rotation" and add
   miniboss / boss rooms (the door-chaining system already supports this)
 - Make vendor rooms functional: currency, buying the displayed items, and a
   curated per-run inventory (see "Vendor rooms" below for the spawn design and
   the parts still to wire up)
-- Expand the spell system: distinct visuals/effects per spell, live combo
-  feedback while casting, and more spells in the registry
-- Loot / pickups and player progression (stats, leveling)
+- Replace placeholder skill tree UI with functional skill trees and spendable
+  skill-point progression.
+- Tie character selection to character-specific stats, abilities, and skill
+  trees instead of only texture/dash sprites.
+- Implement artifact challenge completion and persistent artifact unlock rules.
+- Add loot / pickups and fuller player progression (stats, leveling, run rewards)
 - Audio: sound effects and music
-- Persistence: saving runs and meta-progression between sessions
 - A minimap or room/progress indicator beyond the current "Room N" counter
 
 ### Vendor rooms
@@ -143,7 +155,10 @@ Then run the executable:
   blinks during i-frames)
 - **Left mouse button** — melee attack (opens a hitbox in front of you for a
   short window)
-- **E** — use item (placeholder effect: a short shield + expanding ring)
+- **E** — use item (or open the rune configuration engine, shady dealer,
+  consciousness console, skill tree selector, or Artifact Storage when standing
+  near them)
+- **I** — open inventory (drag/drop bag items and equipment)
 - **Esc** or the window close button — quit
 
 ## Where to go next

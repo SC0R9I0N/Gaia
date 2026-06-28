@@ -10,6 +10,45 @@ namespace gaia {
 
 namespace {
 constexpr double kPi = 3.14159265358979323846;
+
+float clamp01(float value) {
+    if (value < 0.0f) return 0.0f;
+    if (value > 1.0f) return 1.0f;
+    return value;
+}
+
+void drawGlowCircle(SDL_Renderer* renderer, float cx, float cy, float radius,
+                    SDL_Color color) {
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    const int r = static_cast<int>(radius);
+    for (int y = -r; y <= r; ++y) {
+        for (int x = -r; x <= r; ++x) {
+            const int distSq = x * x + y * y;
+            if (distSq <= r * r) {
+                const float falloff = 1.0f - static_cast<float>(distSq) /
+                    static_cast<float>(r * r > 0 ? r * r : 1);
+                SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b,
+                                       static_cast<Uint8>(color.a * falloff));
+                SDL_RenderDrawPoint(renderer,
+                                    static_cast<int>(cx) + x,
+                                    static_cast<int>(cy) + y);
+            }
+        }
+    }
+}
+
+AssetKind dashKindForCharacter(AssetKind characterKind) {
+    switch (characterKind) {
+        case AssetKind::Character2: return AssetKind::Dash2;
+        case AssetKind::Character3: return AssetKind::Dash3;
+        case AssetKind::Character4: return AssetKind::Dash4;
+        case AssetKind::Character5: return AssetKind::Dash5;
+        case AssetKind::Character6: return AssetKind::Dash6;
+        case AssetKind::Character:
+        default:
+            return AssetKind::Dash;
+    }
+}
 }  // namespace
 
 void Player::init(PlaceholderTextures* textures, float x, float y) {
@@ -140,7 +179,7 @@ bool Player::attackHitbox(SDL_Rect* out) const {
 }
 
 void Player::render(SDL_Renderer* renderer, float cameraX, float cameraY) {
-    SDL_Texture* tex = m_textures ? m_textures->defaultFor(AssetKind::Character) : nullptr;
+    SDL_Texture* tex = m_textures ? m_textures->defaultFor(m_characterKind) : nullptr;
 
     // Melee swing: the slash sprite, rotated to the cursor-aimed swing
     // direction and centred on the hitbox. Falls back to a translucent red
@@ -187,26 +226,64 @@ void Player::render(SDL_Renderer* renderer, float cameraX, float cameraY) {
 
     // The character itself. The sprite (authored facing right) only ever flips
     // left/right to match m_textureFacing — never rotated — since this view is
-    // not fully top-down. While invulnerable it blinks so the i-frames show.
+    // not fully top-down. Rolling uses a horizontal dash sprite sheet.
     const SDL_Rect dst{
         static_cast<int>(m_x - cameraX),
         static_cast<int>(m_y - cameraY),
         static_cast<int>(kSize),
         static_cast<int>(kSize)};
     if (tex) {
+        SDL_Rect src{};
+        const SDL_Rect* srcPtr = nullptr;
+        if (m_state == State::Rolling) {
+            SDL_Texture* dash =
+                m_textures ? m_textures->defaultFor(dashKindForCharacter(m_characterKind)) : nullptr;
+            if (dash) {
+                tex = dash;
+                int sheetW = 0, sheetH = 0;
+                SDL_QueryTexture(dash, nullptr, nullptr, &sheetW, &sheetH);
+                const int frameSize = sheetH > 0 ? sheetH : 1;
+                const int frameCount = sheetW / frameSize > 0 ? sheetW / frameSize : 1;
+                const float progress = 1.0f - (m_rollTimer / kRollDuration);
+                int frame = static_cast<int>(progress * frameCount);
+                if (frame < 0) frame = 0;
+                if (frame >= frameCount) frame = frameCount - 1;
+                src = SDL_Rect{frame * frameSize, 0, frameSize, frameSize};
+                srcPtr = &src;
+            }
+        }
+
         Uint8 alpha = 255;
-        if (m_invulnTimer > 0.0f && (static_cast<int>(m_invulnTimer * 20.0f) % 2) == 0) {
+        if (m_state != State::Rolling &&
+            m_invulnTimer > 0.0f &&
+            (static_cast<int>(m_invulnTimer * 20.0f) % 2) == 0) {
             alpha = 110;
         }
         SDL_SetTextureAlphaMod(tex, alpha);
         const SDL_RendererFlip flip =
             m_textureFacing < 0 ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
-        SDL_RenderCopyEx(renderer, tex, nullptr, &dst, 0.0, nullptr, flip);
+        SDL_RenderCopyEx(renderer, tex, srcPtr, &dst, 0.0, nullptr, flip);
         SDL_SetTextureAlphaMod(tex, 255);  // texture is shared; restore it
     } else {
         // Fallback if textures are unavailable.
         SDL_SetRenderDrawColor(renderer, 86, 182, 194, 255);
         SDL_RenderFillRect(renderer, &dst);
+    }
+
+    if (m_state == State::Attacking) {
+        const float progress = clamp01(1.0f - (m_attackTimer / kAttackDuration));
+        const float charge = progress < 0.45f
+            ? progress / 0.45f
+            : 1.0f - (progress - 0.45f) / 0.55f;
+
+        const float staffTipLocalX = m_textureFacing >= 0 ? 41.0f : 7.0f;
+        const float staffTipLocalY = 10.0f;
+        const float tipX = m_x + staffTipLocalX - cameraX;
+        const float tipY = m_y + staffTipLocalY - cameraY;
+        drawGlowCircle(renderer, tipX, tipY, 8.0f + charge * 8.0f,
+                       SDL_Color{80, 220, 255, 115});
+        drawGlowCircle(renderer, tipX, tipY, 3.0f + charge * 3.0f,
+                       SDL_Color{230, 255, 255, 230});
     }
 
     // Item effect: an expanding, fading green ring around the character.
@@ -238,12 +315,16 @@ bool Player::isCasting() const {
     return m_spellCaster.isCasting();
 }
 
-bool Player::activeSpellCircle(float* x, float* y, float* radius, float* spellDirectionX, float* spellDirectionY, float* knockbackPower) const {
-    return m_spellCaster.activeCircle(x, y, radius, spellDirectionX, spellDirectionY, knockbackPower);
+bool Player::activeSpellCircle(float* x, float* y, float* radius,
+                               float* spellDirectionX, float* spellDirectionY,
+                               float* knockbackPower, int* damage,
+                               bool* clearOnHit) const {
+    return m_spellCaster.activeCircle(x, y, radius, spellDirectionX, spellDirectionY,
+                                      knockbackPower, damage, clearOnHit);
 }
 
-void Player::clearActiveSpell() {
-    m_spellCaster.clearActiveSpell();
+void Player::clearActiveSpell(SpellImpactKind impact) {
+    m_spellCaster.clearActiveSpell(impact);
 }
 
 void Player::castSpell(float targetX, float targetY) {

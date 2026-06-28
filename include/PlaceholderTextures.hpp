@@ -15,12 +15,38 @@ namespace gaia {
 // is the single source of truth for which file maps to which kind.
 enum class AssetKind {
     Character,   // the player (and future NPCs)
+    Character2,
+    Character3,
+    Character4,
+    Character5,
+    Character6,
+    Dash,        // player dash / roll animation sprite sheet
+    Dash2,
+    Dash3,
+    Dash4,
+    Dash5,
+    Dash6,
     Item,        // pickups and usables
     Background,  // the full-window backdrop
     Vendor,      // hub vendors / upgrade stations
+    RuneVendor,  // hub rune configuration engine
+    ShadyVendor, // hub risky item dealer
+    ConsciousnessConsole, // hub character selection console
+    SkillTreeConsole, // hub skill tree selector
+    ArtifactStorage, // hub run artifact selector
+    RunPortal,   // animated portal for starting a run
+    GoldCurrency,
+    SkillCurrency,
+    ShadyCurrency,
     Enemy,       // hostile creatures
     Floor,       // tiled room floor
     Attack,      // melee swing / attack animation
+    HubFloor,    // hub: seamless sandstone brick floor tile
+    HubWall,     // hub: seamless sandstone brick wall tile
+    HubLantern,  // hub: animated wall-lantern sprite sheet
+    HubPillar,   // hub: sandstone column decoration
+    HubUrn,      // hub: sandstone urn decoration
+    HubBanner,   // hub: hanging banner decoration
 };
 
 // Lazily creates and caches simple, procedurally-drawn SDL textures so every
@@ -58,9 +84,19 @@ private:
 
     // Procedural fallbacks, used when the matching PNG is absent.
     SDL_Texture* makeCharacter();
+    SDL_Texture* makeDash();
     SDL_Texture* makeItem();
     SDL_Texture* makeBackground();
     SDL_Texture* makeVendor();
+    SDL_Texture* makeRuneVendor();
+    SDL_Texture* makeShadyVendor();
+    SDL_Texture* makeConsciousnessConsole();
+    SDL_Texture* makeSkillTreeConsole();
+    SDL_Texture* makeArtifactStorage();
+    SDL_Texture* makeRunPortal();
+    SDL_Texture* makeGoldCurrency();
+    SDL_Texture* makeSkillCurrency();
+    SDL_Texture* makeShadyCurrency();
     SDL_Texture* makeEnemy();
     SDL_Texture* makeFloor();
     SDL_Texture* makeAttack();
@@ -71,12 +107,38 @@ private:
     int m_bgHeight = 0;
 
     SDL_Texture* m_character  = nullptr;
+    SDL_Texture* m_character2 = nullptr;
+    SDL_Texture* m_character3 = nullptr;
+    SDL_Texture* m_character4 = nullptr;
+    SDL_Texture* m_character5 = nullptr;
+    SDL_Texture* m_character6 = nullptr;
+    SDL_Texture* m_dash       = nullptr;
+    SDL_Texture* m_dash2      = nullptr;
+    SDL_Texture* m_dash3      = nullptr;
+    SDL_Texture* m_dash4      = nullptr;
+    SDL_Texture* m_dash5      = nullptr;
+    SDL_Texture* m_dash6      = nullptr;
     SDL_Texture* m_item       = nullptr;
     SDL_Texture* m_background  = nullptr;
     SDL_Texture* m_vendor      = nullptr;
+    SDL_Texture* m_runeVendor  = nullptr;
+    SDL_Texture* m_shadyVendor = nullptr;
+    SDL_Texture* m_consciousnessConsole = nullptr;
+    SDL_Texture* m_skillTreeConsole = nullptr;
+    SDL_Texture* m_artifactStorage = nullptr;
+    SDL_Texture* m_runPortal = nullptr;
+    SDL_Texture* m_goldCurrency = nullptr;
+    SDL_Texture* m_skillCurrency = nullptr;
+    SDL_Texture* m_shadyCurrency = nullptr;
     SDL_Texture* m_enemy       = nullptr;
     SDL_Texture* m_floor       = nullptr;
     SDL_Texture* m_attack      = nullptr;
+    SDL_Texture* m_hubFloor    = nullptr;
+    SDL_Texture* m_hubWall     = nullptr;
+    SDL_Texture* m_hubLantern  = nullptr;
+    SDL_Texture* m_hubPillar   = nullptr;
+    SDL_Texture* m_hubUrn      = nullptr;
+    SDL_Texture* m_hubBanner   = nullptr;
 };
 
 }  // namespace gaia

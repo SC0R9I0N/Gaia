@@ -1,6 +1,7 @@
 #pragma once
 
 #include <SDL.h>
+#include "PlaceholderTextures.hpp"
 #include "SpellCaster.hpp"
 
 namespace gaia {
@@ -38,6 +39,7 @@ public:
     void update(float dt, const Uint8* keyboard, const Keybindings& binds);
 
     void render(SDL_Renderer* renderer, float cameraX, float cameraY);
+    void setCharacterKind(AssetKind kind) { m_characterKind = kind; }
 
     // Position/size accessors so the room system can collide and reposition.
     float x() const { return m_x; }
@@ -58,8 +60,17 @@ public:
     void beginCasting();
     void appendCastInput(CastInput input);
     bool isCasting() const;
-    bool activeSpellCircle(float* x, float* y, float* radius, float* spellDirectionX, float* spellDirectionY, float* knockbackPower) const;
-    void clearActiveSpell();
+    // Cast-chain state for the HUD spell hotbar.
+    const std::vector<CastInput>& currentCastSequence() const {
+        return m_spellCaster.currentSequence();
+    }
+    float castTimeRemaining() const { return m_spellCaster.castTimeRemaining(); }
+    float castWindow() const { return m_spellCaster.castWindow(); }
+    bool activeSpellCircle(float* x, float* y, float* radius,
+                           float* spellDirectionX, float* spellDirectionY,
+                           float* knockbackPower, int* damage,
+                           bool* clearOnHit) const;
+    void clearActiveSpell(SpellImpactKind impact = SpellImpactKind::Wall);
     // Resolve the cast, sending the spell toward (targetX, targetY) in world space.
     void castSpell(float targetX, float targetY);
 
@@ -78,6 +89,7 @@ private:
     static constexpr float kItemDuration   = 0.50f; // placeholder effect length
 
     PlaceholderTextures* m_textures = nullptr;
+    AssetKind m_characterKind = AssetKind::Character;
 
     float m_x = 0.0f;
     float m_y = 0.0f;
